@@ -697,5 +697,12 @@ for i {87 x 1 sparse Matrix of class "dgCMatrix"
   
   
 #-------
-  1. balanceo
-  2. 
+  1. Balanceo
+  2.2 Logit regresión
+  2. lasso-logit (clasificaciòn)
+  3. Lambda (Lasso)
+  4. Pasar problemas de regresión a clasificación 
+  5. Ridge 
+  6. Elastic Net (Lasso Rigde) 
+  7. Backward 
+  
