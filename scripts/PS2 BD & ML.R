@@ -34,6 +34,8 @@ train_personas<-readRDS(here("../data/train_personas.Rds"))
     library(dplyr)
     library(tidyverse)
     library(glmnet)
+    library(pacman)
+    p_load(AER, tidyverse, caret, MLmetrics, tidymodels, themis)
     
     colnames(train_hogares)
     for i {
@@ -320,14 +322,14 @@ train_personas<-readRDS(here("../data/train_personas.Rds"))
             train[,c(3,4,6,7,8,14,18,22,24,26)]<- scale(train[,c(3,4,6,7,8,14,18,22,24,26)],center=T,scale=T)
             #Estandarizar variables continuas test
             test[,c(3,4,6,7,8,14,18,22,24,26)]<- scale(test[,c(3,4,6,7,8,14,18,22,24,26)],center=T,scale=T)
-            x=train[,c(2,4,5,7,8,14,18,19,20,21,22,24,25,26)]
-            
+            x=train[,c(2,3,4,5,6,7,14,17,19,20,21,22,24,25,26)]
+            x2
             # Ahora procedemos a dummyficar la base
             x <- model.matrix(~ Dominio+ Tipo_vivienda+ rs_jefe_hogar+edu_jefe_hogar
                               +ocupacion_jefe_hogar+subsidio, x) %>%
               as.data.frame()
             
-            x<-cbind(x,train$Ncuartos)
+         
   modelo_lasso <- glmnet(
     x = x,
     y = train$log_ing_per,
@@ -609,3 +611,91 @@ for i {87 x 1 sparse Matrix of class "dgCMatrix"
   cot_jefe_hogar3        3.112551e-01
   subsidio               1.081882e-01}
 #----------------------------------- M o d e l o s  d e  C l a s i f i c a c i ó n ---------------------------------
+  # Cargamos la librería AER donde está alojada la data
+
+  # Codificamos la variable de affairs según el diccionario
+  diccionario_affairs = c("Nunca", "Una vez", "Dos veces", 
+                          "Tres veces", "4 a 10 veces", 
+                          "Más de 10 veces")
+  Affairs$affairs <- factor(Affairs$affairs, 
+                            levels = c(0, 1, 2, 3, 7, 12),
+                            labels = diccionario_affairs)
+  
+  ggplot(train, aes(x = Pobre)) +
+    geom_bar(fill = "darkblue") +
+    theme_bw() +
+    labs(title = "¿Con qué frecuencia tuvo relaciones sexuales extramatrimoniales \n durante el último año?",
+         x = "",
+         y = "Frecuencia") +
+    coord_flip()
+  #----------------- Balancear la muestra
+  prop.table(table(train$Pobre))  0.8001031 0.1998969 
+  #Dummyficamos ANTES de partir la base en train/test
+  
+  
+  
+  train_s <- data.frame(train_s)
+  test_s <- data.frame(test_s)
+  train <- data.frame(train)
+  test <- data.frame(test)
+  
+  train_s$infielTRUE <- as.numeric(train_s$infielTRUE)
+  modelo1 <- lm(formula = infielTRUE ~ ., data = train_s)
+  probs_insample1 <- predict(modelo1, train_s)
+  probs_insample1[probs_insample1 < 0] <- 0
+  probs_insample1[probs_insample1 > 1] <- 1
+  probs_outsample1 <- predict(modelo1, test_s)
+  probs_outsample1[probs_outsample1 < 0] <- 0
+  probs_outsample1[probs_outsample1 > 1] <- 1
+  
+  # Convertimos la probabilidad en una predicción
+  y_hat_insample1 <- as.numeric(probs_insample1 > 0.5)
+  y_hat_outsample1 <- as.numeric(probs_outsample1 > 0.5)
+  
+  acc_insample1 <- Accuracy(y_pred = y_hat_insample1, y_true = train$infielTRUE)
+  acc_outsample1 <- Accuracy(y_pred = y_hat_outsample1, y_true = test$infielTRUE)
+  
+  pre_insample1 <- Precision(y_pred = y_hat_insample1, y_true = train$infielTRUE, positive = 1)
+  pre_outsample1 <- Precision(y_pred = y_hat_outsample1, y_true = test$infielTRUE, positive = 1)
+  
+  rec_insample1 <- Recall(y_pred = y_hat_insample1, y_true = train$infielTRUE, positive = 1)
+  rec_outsample1 <- Recall(y_pred = y_hat_outsample1, y_true = test$infielTRUE, positive = 1)
+  
+  f1_insample1 <- F1_Score(y_pred = y_hat_insample1, y_true = train$infielTRUE, positive = 1)
+  f1_outsample1 <- F1_Score(y_pred = y_hat_outsample1, y_true = test$infielTRUE, positive = 1)
+  
+  metricas_insample1 <- data.frame(Modelo = "Regresión lineal", 
+                                   "Muestreo" = NA, 
+                                   "Evaluación" = "Dentro de muestra",
+                                   "Accuracy" = acc_insample1,
+                                   "Precision" = pre_insample1,
+                                   "Recall" = rec_insample1,
+                                   "F1" = f1_insample1)
+  
+  metricas_outsample1 <- data.frame(Modelo = "Regresión lineal", 
+                                    "Muestreo" = NA, 
+                                    "Evaluación" = "Fuera de muestra",
+                                    "Accuracy" = acc_outsample1,
+                                    "Precision" = pre_outsample1,
+                                    "Recall" = rec_outsample1,
+                                    "F1" = f1_outsample1)
+  
+  metricas1 <- bind_rows(metricas_insample1, metricas_outsample1)
+  metricas1 %>%
+    kbl(digits = 2)  %>%
+    kable_styling(full_width = T)
+  
+#---------------------- Oversamplig 
+  # Implementamos oversampling
+  train$PobreTRUE <- factor(train$PobreTRUE)
+  train_s2 <- recipe(ProbreTRUE ~ ., data = x) %>%
+    themis::step_smote(PobreTRUE, over_ratio = 1) %>%
+    prep() %>%
+    bake(new_data = NULL)
+  
+  prop.table(table(x$PobreTRUE))
+  
+  
+#-------
+  1. balanceo
+  2. 
