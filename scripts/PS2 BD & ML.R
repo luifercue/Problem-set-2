@@ -513,31 +513,52 @@
         prop.table(table(x$PobreTRUE))
   
   
-  1. Balanceo
-  2.2 Logit regresión
-  2. lasso-logit (clasificaciòn)
-  3. Lambda (Lasso)
-  4. Pasar problemas de regresión a clasificación 
-  5. Ridge 
-  6. Elastic Net (Lasso Rigde) 
-  7. Backward 
+#----------------------------------- L a s s o - L o g i t  -----------------------------------------
+        
   
+
+                                   
+                                   
+#---------------------------------------- T r e e s ---------------------------------
   
+#--------------------------------- R a n d o m   F o r e s t  ---------------------------------
+#--------------- Tunear la grilla
+        gbmGrid <-  expand.grid(interaction.depth = c(1, 5, 9), 
+                                n.trees = (1:30)*50, 
+                                shrinkage = 0.1,
+                                n.minobsinnode = 20)
+        
+        nrow(gbmGrid)
+        
+        set.seed(825)
+        gbmFit2 <- train(Class ~ ., data = training, 
+                         method = "gbm", 
+                         trControl = fitControl, 
+                         verbose = FALSE, 
+                         ## Now specify the exact models 
+                         ## to evaluate:
+                         tuneGrid = gbmGrid)
+        gbmFit2
+        
+        
+        
+#---------------------------------M E J O R A R   M O D E L O   G A N A D O R ---------------------------------
+#------------------------------------------------ T U N E A R  ---------------------------------------
+        
 #------------Métricas 
-  The function trainControl generates parameters that further control how models are created, with possible values:
- 
+        The function trainControl generates parameters that further control how models are created, with possible values:
+          
 #---ROC  
-    set.seed(825)
-  gbmFit3 <- train(Class ~ ., data = training, 
-                   method = "gbm", 
-                   trControl = fitControl, 
-                   verbose = FALSE, 
-                   tuneGrid = gbmGrid,
-                   ## Specify which metric to optimize
-                   metric = "ROC")
-  gbmFit3
-#----------------------------------- L a s s o - L o g i t  ---------------------------------
- #-------------- Model tuning: Maximizar la capacidd predictiva del modelo (para logit) 
+          set.seed(825)
+        gbmFit3 <- train(Class ~ ., data = training, 
+                         method = "gbm", 
+                         trControl = fitControl, 
+                         verbose = FALSE, 
+                         tuneGrid = gbmGrid,
+                         ## Specify which metric to optimize
+                         metric = "ROC")
+        gbmFit3
+#-------------- Model tuning: Maximizar la capacidd predictiva del modelo (para logit) 
         
         ctrl def <- trainControl(method = "cv",
                                  number = 5,
@@ -576,7 +597,7 @@
         )
         
         
-#------------ 5 Métricas juntas
+        #------------ 5 Métricas juntas
         
         fiveStats <- function(...) c(twoClassSummary(...), defaultSummary(...))
         ctrl<- trainControl(method = "cv",
@@ -594,13 +615,13 @@
           family = "binomial",
           preProcess = c("center", "scale")
         )
-
+        
 #-------------- Model tuning: Maximizar la capacidd predictiva del modelo (para losso) 
         #Model(glmnet) method (glmnet) Type (Classification), Regression	libraries(glmnet, Matrix)	Tunning parameters (alpha, lambda)
-#-----Lasso
+        #-----Lasso
         lambda grid <- 10^seq(-4, 0.01, length = 10) #en la practica se suele usar una grilla de 200 o 300
         lambda grid
-
+        
 #------------ 5 Métricas juntas
         
         set.seed(1410)
@@ -639,23 +660,10 @@
           tuneGrid = expand.grid(alpha = 0,lambda=lambda grid),
           preProcess = c("center", "scale")
         )
-#---------------------------------------- T r e e s ---------------------------------
-  
-#--------------------------------- R a n d o m   F o r e s t  ---------------------------------
-#--------------- Tunear la grilla
-        gbmGrid <-  expand.grid(interaction.depth = c(1, 5, 9), 
-                                n.trees = (1:30)*50, 
-                                shrinkage = 0.1,
-                                n.minobsinnode = 20)
         
-        nrow(gbmGrid)
+#------ Cutoff óptimo     
         
-        set.seed(825)
-        gbmFit2 <- train(Class ~ ., data = training, 
-                         method = "gbm", 
-                         trControl = fitControl, 
-                         verbose = FALSE, 
-                         ## Now specify the exact models 
-                         ## to evaluate:
-                         tuneGrid = gbmGrid)
-        gbmFit2
+        evalResults <- data.frame(Default = evaluation$Default)
+        evalResults$Roc <- predict(mylogit lasso roc,
+                                   newdata = evaluation,
+                                   type = "prob")[,1]
