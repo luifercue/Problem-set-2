@@ -258,13 +258,11 @@
             train<-train_hogares2[train_hogares2$holdout==F,] #131.968
             
 #----------------------------------- M o d e l o s   d e  e s t i m a c i ó n ---------------------------------
-#-------------------------------------------------------------------------------------------------------------
-#                                              MODELO DE REGRESIÓN 
-#-------------------------------------------------------------------------------------------------------------
-#-----------#Modelo 1
+#-----------#Modelo 1 y 2
             modelo1<-lm(log_ing_per~ Tipo_vivienda+ rs_jefe_hogar+edu_jefe_hogar+ Ncuartos + Ncuartos_dormir+ 
                           Nper+Npersug+ hacinamiento+edad_jefe_hogar+Horas_trabajo1+Horas_trabajo2+
-                          arriendo_estimado+ocupacion_jefe_hogar+Dominio+subsidio, data=train)
+                          arriendo_estimado+ocupacion_jefe_hogar+Dominio+subsidio+sexo_jefe_hogar
+                        +cot_jefe_hogar, data=train)
             summary(modelo1)
             
             modelo2<-lm(log_ing_per~ Tipo_vivienda+ rs_jefe_hogar+edu_jefe_hogar+ Ncuartos_dormir+ 
@@ -275,10 +273,10 @@
 
  #-----------#MSE 
             test$modelo1<-predict(modelo1,newdata = test)
-            with(test,mean((log_ing_per-modelo1)^2)) #1.084773
+            with(test,mean((log_ing_per-modelo1)^2)) #1.082514
             
             test$modelo2<-predict(modelo2,newdata = test)
-            with(test,mean((log_ing_per-modelo2)^2)) #1.100184 
+            with(test,mean((log_ing_per-modelo2)^2)) #1.100224 
             
             
               #Gráfico de coeficientes modelo 2  
@@ -302,11 +300,11 @@
             y_hat_out1 <- predict(modelo2, newdata = test)
             
             # Métricas dentro y fuera de muestra. Paquete MLmetrics
-            r2_in1 <- R2_Score(y_pred = exp(y_hat_in1), y_true = exp(train$log_ing_per))
-            rmse_in1 <- RMSE(y_pred = exp(y_hat_in1), y_true = exp(train$log_ing_per))
+            r2_in1 <- R2_Score(y_pred = exp(y_hat_in1), y_true = (train$Ingpcug))
+            rmse_in1 <- RMSE(y_pred = exp(y_hat_in1), y_true = (train$Ingpcug))
             
-            r2_out1 <- R2_Score(y_pred = exp(y_hat_out1), y_true = exp(test$log_ing_per))
-            rmse_out1 <- RMSE(y_pred = exp(y_hat_out1), y_true = exp(test$log_ing_per))
+            r2_out1 <- R2_Score(y_pred = exp(y_hat_out1), y_true = (test$Ingpcug))
+            rmse_out1 <- RMSE(y_pred = exp(y_hat_out1), y_true = (test$Ingpcug))
             
             resultados <- data.frame(Modelo = "Regresión lineal", 
                                      Muestra = "Dentro",
@@ -315,27 +313,26 @@
                                Muestra = "Fuera",
                                R2_Score = r2_out1, RMSE = rmse_out1))
             
-#-------------------------------------------------------------------------------------------------------------
-#                                                   LASSO
-#-------------------------------------------------------------------------------------------------------------
+#------------------------------------------------------ L A S S O -------------------------------------------------------
 #-----------Estandarizar variables continuas train
-            train[,c(3,4,6,7,8,14,18,22,24,26)]<- scale(train[,c(3,4,6,7,8,14,18,22,24,26)],center=T,scale=T)
-            #Estandarizar variables continuas test
-            test[,c(3,4,6,7,8,14,18,22,24,26)]<- scale(test[,c(3,4,6,7,8,14,18,22,24,26)],center=T,scale=T)
-            x=train[,c(2,3,4,5,6,7,14,17,19,20,21,22,24,25,26)]
-            x2
-            # Ahora procedemos a dummyficar la base
-            x <- model.matrix(~ Dominio+ Tipo_vivienda+ rs_jefe_hogar+edu_jefe_hogar
-                              +ocupacion_jefe_hogar+subsidio, x) %>%
-              as.data.frame()
+            train[,c(4,7,14,18,22,24,26)]<- scale(train[,c(3,4,6,7,8,14,18,22,24,26)],center=T,scale=T)
+            train[,c(3,4,6,7,14,18,22,24,26)]<- scale(train[,c(3,4,6,7,8,14,18,22,24,26)],center=T,scale=T)
             
-                   
+            #Estandarizar variables continuas test
+            test[,c(3,4,6,7,8,14,18,22,24,26)]<- scale(test[,c(3,4,6,7,8,14,18,22,24,26)], center=T,scale=T)
+            x_continuas=scale(train[,c(4,7,14,18,22,24,26)])
+            x_categoricas=scale(train[,c(2,5,17,19,20,21,25)])
+            # Ahora procedemos a dummyficar la base
+            x_categoricas<- model.matrix(~ ., x_categoricas) %>%
+              as.data.frame #%>%
+              cx<- cbind(x_categoricas,x_continuas)
+
             modelo_lasso <- glmnet(
-              x = x,
+              x = cx,
               y = train$log_ing_per,
               alpha = 1,
-              nlambda = 5000,
-              standardize = FALSE
+              nlambda = 1000,
+              standardize = TRUE
             )
           
             #Lasso para lambda distinto (establecer grilla)
@@ -372,10 +369,10 @@
             # En este caso vamos a crear la predicción para cada uno de los
             # 5000 lambdas seleccionados
             predicciones_lasso <- predict(modelo_lasso, 
-                                        newx = as.matrix(x))
+                                        newx = as.matrix(cx))
             lambdas_lasso <- modelo_lasso$lambda
           
-            # Cada predicción se va a evaluar
+------------# Cada predicción se va a evaluar
             resultados_lasso <- data.frame()
             for (i in 1:length(lambdas_lasso)) {
               l <- lambdas_lasso[i]
@@ -390,12 +387,13 @@
               resultados_lasso <- bind_rows(resultados_lasso, resultado)
               }
           
+#-----------Gráfico RMSE Lasso
             ggplot(resultados_lasso, aes(x = Lambda, y = RMSE)) +
             geom_point() +
             geom_line() +
             theme_bw() +
             scale_y_continuous(labels = scales::comma)
-          
+#-----------Gráfico R2
             ggplot(resultados_lasso, aes(x = Lambda, y = R2_Score)) +
             geom_point() +
             geom_line() +
@@ -408,18 +406,18 @@
             
             # Guardamos el mejor Lasso
             y_hat_in2 <- predict.glmnet(modelo_lasso,
-                                      newx = as.matrix(x),
+                                      newx = as.matrix(cx),
                                       s = mejor_lambda_lasso)
             y_hat_out2 <- predict.glmnet(modelo_lasso,
-                                       newx = as.matrix(x),
+                                       newx = as.matrix(cx),
                                        s = mejor_lambda_lasso)
           
             # Métricas dentro y fuera de muestra. Paquete MLmetrics
             r2_in2 <- R2_Score(y_pred = exp(y_hat_in2), y_true = exp(train$log_ing_per))
             rmse_in2 <- RMSE(y_pred = exp(y_hat_in2), y_true = exp(train$log_ing_per))
             
-            r2_out2 <- R2_Score(y_pred = exp(y_hat_out2), y_true = exp(y_test))
-            rmse_out2 <- RMSE(y_pred = exp(y_hat_out2), y_true = exp(y_test))
+            r2_out2 <- R2_Score(y_pred = exp(y_hat_out2), y_true = exp(test$log_ing_per))
+            rmse_out2 <- RMSE(y_pred = exp(y_hat_out2), y_true = exp(test$log_ing_per))
             
             # Guardamos el desempeño
             resultados2 <- data.frame(Modelo = "Lasso", 
@@ -432,7 +430,8 @@
             # Juntamos resultados con regresión lineal
             resultados <- rbind(resultados, resultados2)
 
-
+#----------------------------------------------------- R I D G E ------------------------------------------------------
+            
 #-------------------------------------------------------------------------------------------------------------------------------------
 #                                   M o d e l o s  d e  C l a s i f i c a c i ó n
 #------------------------------------------------------------------------------------------------------------------------------------
