@@ -191,6 +191,11 @@
             train_hogares$Horas_trabajo2 = ifelse(is.na(train_hogares$Horas_trabajo2)==T,0,train_hogares$Horas_trabajo2)
             
         #-------Eliminar y crear variables 
+            
+            train_hogares$subsidio<-(ifelse((train_hogares$subsidio>0),1,0))
+            arriendo_estimado<-train_hogares$P5130+train_hogares$P5140
+            train_hogares<-cbind(train_hogares,arriendo_estimado)
+            
             train_hogares<-train_hogares[,-2]
             train_hogares<-train_hogares[,-6]
             train_hogares<-train_hogares[,-6]
@@ -201,12 +206,6 @@
             train_hogares<-train_hogares[,-13] 
             train_hogares<-train_hogares[,-13]
             train_hogares<-train_hogares[,-14]
-            train_hogares<-train_hogares[,-26]
-            train_hogares<-train_hogares[,-25]
-            
-            train_hogares$subsidio<-(ifelse((train_hogares$subsidio>0),1,0))
-            arriendo_estimado<-train_hogares$P5130+train_hogares$P5140
-            train_hogares<-cbind(train_hogares,arriendo_estimado)
             
             #back up
             train_hogares2<-train_hogares
@@ -724,14 +723,26 @@ table(test$Pobre,y_hat_lasso_outsample1)
 #----------------------------------- B a l a n c e o   d e   l a   m u e s t r a ---------------------------------
 
 #---------------------- Oversamplig 
+       set.seed(1103)
+       upSampledTrain <- upSample(x = training,
+                                  y = training$Default,
+                                  ## keep the class variable name the same:
+                                  yname = "Default")
+       dim(training)
+
+       set.seed(1410)
+       mylogit lasso upsample <- train(
+         Default ~amount+installment+age+ historygood + historypoor + purposeusedcar+ purposegoods.repair + purposeedu + foreigngerman + rentTRdata = upSampledTrain,
+         method = "glmnet",
+         trControl = ctrl,
+         family = "binomial",
+         metric = "ROC",
+         tuneGrid = expand.grid(alpha = 0,lambda=lambda grid),
+         preProcess = c("center", "scale")
+       )
        
-       train$Pobre<-factor(train$Pobre)
-       train_2 <- recipe(train$Pobre ~ ., data = predicciones_general) %>%
-         themis::step_smote(train$Pobre, over_ratio = 1) %>%
-         prep() %>%
-         bake(new_data = NULL)
        
-       prop.table(table(train_2$Pobre))
+       
        
        
        # Implementamos oversampling
