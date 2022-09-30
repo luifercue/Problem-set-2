@@ -98,10 +98,6 @@
     }
     
 #----------------------------------- C o n s t r u c c i o n   d e   l a   b a s e ---------------------------------
-        #Estrato (no está en test)
-            estrato<-train_personas %>% group_by(id) %>% summarize(Estrato1=mean(Estrato1,na.rm = TRUE)) 
-            table(estrato, train_personas$Estrato1)
-            
         #Sexo jefe hogar
             sex_jefe_hog<- as.data.frame(ifelse((train_personas$P6020==1 & train_personas$P6050==1),1,0))
             train_personas<- cbind(train_personas, sex_jefe_hog)
@@ -117,11 +113,6 @@
         #Hacinamiento
             hacinamiento=train_hogares$Nper/train_hogares$P5010
             train_hogares<-cbind(train_hogares, hacinamiento)
-            
-        #Personas que aportan a la unidad de gasto (PAUG)
-            paug=(train_hogares$Npersug/train_hogares$Nper)
-            train_hogares<-cbind(train_hogares, paug)
-            table(paug)
             
         #Régimen de salud jefe de hogar
             rs_jefe_hogar<- (ifelse((train_personas$P6050==1),train_personas$P6100,0))
@@ -145,9 +136,6 @@
             table(train_personas$P6050, train_personas$P6430)
             
         #Subsidios
-            train_hogares<-train_hogares[,-30]
-            train_personas<-train_personas[,-141]
-            
             train_personas$P6585s1 = ifelse((train_personas$P6585s1==2),0,train_personas$P6585s1)
             train_personas$P6585s2 = ifelse((train_personas$P6585s2==2),0,train_personas$P6585s2)
             train_personas$P6585s3 = ifelse((train_personas$P6585s3==2),0,train_personas$P6585s3)
@@ -163,38 +151,20 @@
         #Suma de horas trabajadas por hogar 
             horas_tra_hogar<-train_personas %>% group_by(id) %>% summarize(P6800=mean(P6800,na.rm = TRUE)) 
         
-        #Cotiza pensión jefe de hogar
-            cot_jefe_hogar<- (ifelse((train_personas$P6050==1),train_personas$P6920,0))
-            train_personas<- cbind(train_personas, cot_jefe_hogar)
-            cot_jefe_hog<-train_personas %>% group_by(id) %>% summarize(cot_jefe_hogar=sum(cot_jefe_hogar,na.rm = TRUE)) 
-           
         #Suma de horas trabajadas segundo empleo por hogar 
             horas_tra_hogar_2<-train_personas %>% group_by(id) %>% summarize(P7045=mean(P7045,na.rm = TRUE)) 
             
-        #TD por hogar 
-            #reemplazar missing de des por 0
-            train_personas$Des = ifelse(is.na(train_personas$Des)==T,0,train_personas$Des)
-            #Suma Pet
-            sum_pet<-train_personas %>% group_by(id) %>% summarize(Pet=sum(Pet,na.rm = TRUE)) 
-            #Suma Des
-            sum_des<-train_personas %>% group_by(id) %>% summarize(Des=sum(Des,na.rm = TRUE)) 
-            
             
         #-------Merge 
-            train_hogares<-left_join(train_hogares, sum_des)
             train_hogares<-left_join(train_hogares, sexo_jefe_hog)
             train_hogares<-left_join(train_hogares, edad_jefe_hog)
             train_hogares<-left_join(train_hogares, hacinamiento)
-            train_hogares<-left_join(train_hogares, paug)
             train_hogares<-left_join(train_hogares, rs_jefe_hog)
             train_hogares<-left_join(train_hogares, educ_jefe_hog)
             train_hogares<-left_join(train_hogares, ocupacion_jefe_hog)
             train_hogares<-left_join(train_hogares, sub_hog)
             train_hogares<-left_join(train_hogares, horas_tra_hogar)
-            train_hogares<-left_join(train_hogares, cot_jefe_hog)
             train_hogares<-left_join(train_hogares, horas_tra_hogar_2)
-            train_hogares<-left_join(train_hogares, sum_pet)
-            train_hogares<-left_join(train_hogares, sum_des)
             colnames(train_hogares)
         
             
@@ -212,8 +182,6 @@
         #-------Eliminar y crear variables 
             train_hogares<-train_hogares[,-2]
             train_hogares<-train_hogares[,-6]
-            arriendo_estimado<-train_hogares$P5130+train_hogares$P5140
-            train_hogares<-cbind(train_hogares,arriendo_estimado)
             train_hogares<-train_hogares[,-6]
             train_hogares<-train_hogares[,-6]
             train_hogares<-train_hogares[,-8]
@@ -222,12 +190,13 @@
             train_hogares<-train_hogares[,-13] 
             train_hogares<-train_hogares[,-13]
             train_hogares<-train_hogares[,-14]
-            
-            TD<-train_hogares$Des/train_hogares$Pet
-            train_hogares<-cbind(train_hogares,TD)
             train_hogares<-train_hogares[,-26]
             train_hogares<-train_hogares[,-25]
+            
             train_hogares$subsidio<-(ifelse((train_hogares$subsidio>0),1,0))
+            arriendo_estimado<-train_hogares$P5130+train_hogares$P5140
+            train_hogares<-cbind(train_hogares,arriendo_estimado)
+            
             #back up
             train_hogares2<-train_hogares
             #Logaritmo del ingreso percapita
@@ -235,15 +204,20 @@
             ing_per<-ifelse((ing_per)==0,1,ing_per)
             log_ing_per<- log(ing_per)
             train_hogares2<-cbind(train_hogares2,log_ing_per)
-            
-            
             # Variables como factor 
             train_hogares2$Dominio<-as.factor(train_hogares2$Dominio)
             train_hogares2$Tipo_vivienda<-as.factor(train_hogares2$Tipo_vivienda)
             train_hogares2$rs_jefe_hogar<-as.factor(train_hogares2$rs_jefe_hogar)
             train_hogares2$edu_jefe_hogar<-as.factor(train_hogares2$edu_jefe_hogar)
             train_hogares2$ocupacion_jefe_hogar<-as.factor(train_hogares2$ocupacion_jefe_hogar)
-
+            #Dumificar 
+            #Train
+            x_categoricas=(train_hogares2[,c(2,5,19,20,21)])
+            # Ahora procedemos a dummyficar la base
+            x_categoricas<- model.matrix(~ ., x_categoricas) %>%
+              as.data.frame #%>%
+            train_hogares2<- cbind(train_hogares2,x_categoricas)
+            
 #----------------------------------- E s t a d í s t i c a s   D e s c r i p t i v a s ---------------------------------
           
               table (train_hogares$Pobre) #131936  33024
@@ -258,30 +232,65 @@
             train<-train_hogares2[train_hogares2$holdout==F,] #131.968
             
 #----------------------------------- M o d e l o s   d e  e s t i m a c i ó n ---------------------------------
-#-----------#Modelo 1 y 2
-            modelo1<-lm(log_ing_per~ Tipo_vivienda+ rs_jefe_hogar+edu_jefe_hogar+ Ncuartos + Ncuartos_dormir+ 
-                          Nper+Npersug+ hacinamiento+edad_jefe_hogar+Horas_trabajo1+Horas_trabajo2+
-                          arriendo_estimado+ocupacion_jefe_hogar+Dominio+subsidio+sexo_jefe_hogar
-                        +cot_jefe_hogar, data=train)
-            summary(modelo1)
+#------------OLS
+           set.seed(12345)
+            ols <- train(log_ing_per~ Tipo_vivienda+ rs_jefe_hogar+edu_jefe_hogar+ Ncuartos + Ncuartos_dormir+ 
+                                      Nper+Npersug+ hacinamiento+edad_jefe_hogar+Horas_trabajo1+Horas_trabajo2+
+                                      arriendo_estimado+ocupacion_jefe_hogar+Dominio+subsidio+sexo_jefe_hogar, # model to fit
+                         data = train,
+                         trControl = trainControl(method = "cv", number = 10),
+                         method = "lm")
             
-            modelo2<-lm(log_ing_per~ Tipo_vivienda+ rs_jefe_hogar+edu_jefe_hogar+ Ncuartos_dormir+ 
-                          Npersug+ hacinamiento+edad_jefe_hogar+Horas_trabajo1+Horas_trabajo2+
-                          arriendo_estimado+ocupacion_jefe_hogar+Dominio+subsidio, data=train)
-            summary(modelo2)
-            
+            ols$results
+            intercept      RMSE  Rsquared      MAE    RMSESD  RsquaredSD       MAESD
+            1      TRUE 1.036285 0.3469095 0.538377 0.0333237 0.008536496 0.007743297
 
- #-----------#MSE 
-            test$modelo1<-predict(modelo1,newdata = test)
-            with(test,mean((log_ing_per-modelo1)^2)) #1.082514
+ #----------Problema de clasificaciòn
+            y_hat_insample<-predict(ols$finalModel,train)
+            y_hat_outsample<-predict(ols$finalModel,test)
             
-            test$modelo2<-predict(modelo2,newdata = test)
-            with(test,mean((log_ing_per-modelo2)^2)) #1.100224 
+            y_hat_insample1 <- as.numeric(ifelse(exp(y_hat_insample)<train$Lp,1,0))
+            y_hat_outsample1 <- as.numeric(ifelse(exp(y_hat_outsample)<test$Lp,1,0))
             
+#-----------Métricas para matriz 
+            acc_insample1 <- Accuracy(y_pred = y_hat_insample1, y_true = train$Pobre)
+            acc_outsample1 <- Accuracy(y_pred = y_hat_outsample1, y_true = test$Pobre)
             
-              #Gráfico de coeficientes modelo 2  
+            pre_insample1 <- Precision(y_pred = y_hat_insample1, y_true = train$Pobre, positive = 1)
+            pre_outsample1 <- Precision(y_pred = y_hat_outsample1, y_true = test$Pobre, positive = 1)
+            
+            rec_insample1 <- Recall(y_pred = y_hat_insample1, y_true = train$Pobre, positive = 1)
+            rec_outsample1 <- Recall(y_pred = y_hat_outsample1, y_true = test$Pobre, positive = 1)
+            
+            f1_insample1 <- F1_Score(y_pred = y_hat_insample1, y_true = train$Pobre, positive = 1)
+            f1_outsample1 <- F1_Score(y_pred = y_hat_outsample1, y_true = test$Pobre, positive = 1)
+            
+            metricas_insample1 <- data.frame(Modelo = "Regresión lineal", 
+                                             "Muestreo" = NA, 
+                                             "Evaluación" = "Dentro de muestra",
+                                             "Accuracy" = acc_insample1,
+                                             "Precision" = pre_insample1,
+                                             "Recall" = rec_insample1,
+                                             "F1" = f1_insample1)
+            
+            metricas_outsample1 <- data.frame(Modelo = "Regresión lineal", 
+                                              "Muestreo" = NA, 
+                                              "Evaluación" = "Fuera de muestra",
+                                              "Accuracy" = acc_outsample1,
+                                              "Precision" = pre_outsample1,
+                                              "Recall" = rec_outsample1,
+                                              "F1" = f1_outsample1)
+            
+            metricas1 <- bind_rows(metricas_insample1, metricas_outsample1)
+            metricas1 
+            
+            Modelo Muestreo        Evaluación  Accuracy Precision    Recall       F1
+            1 Regresión lineal       NA Dentro de muestra 0.8393020 0.6065061 0.5583397 0.581427
+            2 Regresión lineal       NA  Fuera de muestra 0.8389306 0.6091237 0.5586996 0.582823
+            
+#------------Gráfico de coeficientes OLS 
                       
-            df_coeficientes_reg2 <- modelo2$coefficients %>%
+            df_coeficientes_reg2 <- ols$finalModel$coefficients %>%
               enframe(name = "predictor", value = "coeficiente")
             
             df_coeficientes_reg2[-1,] %>%
@@ -295,62 +304,93 @@
                    y = "Coeficientes") +
               theme_bw()
             
-#-----------Evaluamos el modelo de regresión lineal
-            y_hat_in1 <- predict(modelo2, newdata = train)
-            y_hat_out1 <- predict(modelo2, newdata = test)
-            
-            # Métricas dentro y fuera de muestra. Paquete MLmetrics
-            r2_in1 <- R2_Score(y_pred = exp(y_hat_in1), y_true = (train$Ingpcug))
-            rmse_in1 <- RMSE(y_pred = exp(y_hat_in1), y_true = (train$Ingpcug))
-            
-            r2_out1 <- R2_Score(y_pred = exp(y_hat_out1), y_true = (test$Ingpcug))
-            rmse_out1 <- RMSE(y_pred = exp(y_hat_out1), y_true = (test$Ingpcug))
-            
-            resultados <- data.frame(Modelo = "Regresión lineal", 
-                                     Muestra = "Dentro",
-                                     R2_Score = r2_in1, RMSE = rmse_in1) %>%
-              rbind(data.frame(Modelo = "Regresión lineal", 
-                               Muestra = "Fuera",
-                               R2_Score = r2_out1, RMSE = rmse_out1))
-            
 #------------------------------------------------------ L A S S O -------------------------------------------------------
 #-----------Estandarizar variables continuas train
-            train[,c(4,7,14,18,22,24,26)]<- scale(train[,c(3,4,6,7,8,14,18,22,24,26)],center=T,scale=T)
-            train[,c(3,4,6,7,14,18,22,24,26)]<- scale(train[,c(3,4,6,7,8,14,18,22,24,26)],center=T,scale=T)
+            train[,c(3,4,6,7,14,18,22,24,26)]<- scale(train[,c(3,4,6,7,14,18,22,24,26)],center=T,scale=T)
             
-            #Estandarizar variables continuas test
+#-----------Estandarizar variables continuas test
             test[,c(3,4,6,7,8,14,18,22,24,26)]<- scale(test[,c(3,4,6,7,8,14,18,22,24,26)], center=T,scale=T)
-            x_continuas=scale(train[,c(4,7,14,18,22,24,26)])
-            x_categoricas=scale(train[,c(2,5,17,19,20,21,25)])
-            # Ahora procedemos a dummyficar la base
-            x_categoricas<- model.matrix(~ ., x_categoricas) %>%
+            
+#-----------Base con x's de train
+              x_continuas=(train[,c(3,4,6,7,14,18,22,24,26,28)])
+              x_categoricas=(train[,c(2,5,17,19,20,21,25)])
+              # Ahora procedemos a dummyficar la base
+              x_categoricas<- model.matrix(~ ., x_categoricas) %>%
               as.data.frame #%>%
               cx<- cbind(x_categoricas,x_continuas)
-
-            modelo_lasso <- glmnet(
-              x = cx,
-              y = train$log_ing_per,
-              alpha = 1,
-              nlambda = 1000,
-              standardize = TRUE
-            )
-          
-            #Lasso para lambda distinto (establecer grilla)
+#-----------Base con x's de test
+              x_continuas_t=(test[,c(3,4,6,7,14,18,22,24,26,28)])
+              x_categoricas_t=(test[,c(2,5,17,19,20,21,25)])
+              # Ahora procedemos a dummyficar la base
+              x_categoricas_t<- model.matrix(~ ., x_categoricas_t) %>%
+                as.data.frame #%>%
+              cx_t<- cbind(x_categoricas_t,x_continuas_t)
+rm(cx,cx_t)
             
-            # Analicemos cómo cambian los coeficientes para diferentes lambdas
-            regularizacion <- modelo_lasso$beta %>%    
-              as.matrix() %>%
-              t() %>% 
-              as_tibble() %>%
-              mutate(lambda = modelo_lasso$lambda)
+#-----------Lasso con grilla específica
+            cx$sexo_jefe_hogar<-as.factor(cx$sexo_jefe_hogar)
+            cx$subsidio<-as.factor(cx$subsidio)
+            cx$Dominio<-as.factor(cx$Dominio)
+            cx$Tipo_vivienda<-as.factor(cx$Tipo_vivienda)
+            cx$rs_jefe_hogar<-as.factor(cx$rs_jefe_hogar)
+            cx$edu_jefe_hogar<-as.factor(cx$edu_jefe_hogar)
+            cx$ocupacion_jefe_hogar<-as.factor(cx$ocupacion_jefe_hogar)
+            cx$subsidio<-as.factor(cx$subsidio)
             
-            regularizacion <- regularizacion %>%  
-              pivot_longer(
-                cols = !lambda, 
-                names_to = "predictor",
-                values_to = "coeficientes"
-              )
             
+              set.seed(12345)
+              lambda <- 10^seq(-2, 3, length = 100)
+              lasso <- train(log_ing_per ~ ., 
+              data = cx,
+              method = "glmnet", linout = TRUE,
+              trControl = trainControl(method = "cv",
+                                       number = 10,
+                                       summaryFunction = defaultSummary,
+                                       verbose=FALSE,
+                                       savePredictions = T),
+              tuneGrid = expand.grid(alpha = 1, lambda=lambda), preProcess = c("center", "scale"))
+              
+#----------Problema de clasificaciòn
+              cx<-cx[,-61]
+              y_hat_insample<-predict(lasso$finalModel,cx)
+              y_hat_outsample<-predict(lasso$finalModel,cx_t)
+              
+              y_hat_insample1 <- as.numeric(ifelse(exp(y_hat_insample)<train$Lp,1,0))
+              y_hat_outsample1 <- as.numeric(ifelse(exp(y_hat_outsample)<test$Lp,1,0))
+              
+              #-----------Métricas para matriz 
+              acc_insample1 <- Accuracy(y_pred = y_hat_insample1, y_true = train$Pobre)
+              acc_outsample1 <- Accuracy(y_pred = y_hat_outsample1, y_true = test$Pobre)
+              
+              pre_insample1 <- Precision(y_pred = y_hat_insample1, y_true = train$Pobre, positive = 1)
+              pre_outsample1 <- Precision(y_pred = y_hat_outsample1, y_true = test$Pobre, positive = 1)
+              
+              rec_insample1 <- Recall(y_pred = y_hat_insample1, y_true = train$Pobre, positive = 1)
+              rec_outsample1 <- Recall(y_pred = y_hat_outsample1, y_true = test$Pobre, positive = 1)
+              
+              f1_insample1 <- F1_Score(y_pred = y_hat_insample1, y_true = train$Pobre, positive = 1)
+              f1_outsample1 <- F1_Score(y_pred = y_hat_outsample1, y_true = test$Pobre, positive = 1)
+              
+              metricas_insample1 <- data.frame(Modelo = "Regresión lineal", 
+                                               "Muestreo" = NA, 
+                                               "Evaluación" = "Dentro de muestra",
+                                               "Accuracy" = acc_insample1,
+                                               "Precision" = pre_insample1,
+                                               "Recall" = rec_insample1,
+                                               "F1" = f1_insample1)
+              
+              metricas_outsample1 <- data.frame(Modelo = "Regresión lineal", 
+                                                "Muestreo" = NA, 
+                                                "Evaluación" = "Fuera de muestra",
+                                                "Accuracy" = acc_outsample1,
+                                                "Precision" = pre_outsample1,
+                                                "Recall" = rec_outsample1,
+                                                "F1" = f1_outsample1)
+              
+              metricas1 <- bind_rows(metricas_insample1, metricas_outsample1)
+              metricas1 
+              
+              
 #--------Gráfico de Lasso
             regularizacion %>%
             ggplot(aes(x = lambda, y = coeficientes, color = predictor)) +
@@ -364,73 +404,81 @@
             theme_bw() +
             theme(legend.position="bottom")
           
-            # ¿Cómo escoger el mejor lambda? 
             # Veamos cuál es el mejor prediciendo (fuera de muestra)
-            # En este caso vamos a crear la predicción para cada uno de los
-            # 5000 lambdas seleccionados
             predicciones_lasso <- predict(modelo_lasso, 
-                                        newx = as.matrix(cx))
+                                        newx = as.matrix(cx_t))
             lambdas_lasso <- modelo_lasso$lambda
           
-------------# Cada predicción se va a evaluar
-            resultados_lasso <- data.frame()
-            for (i in 1:length(lambdas_lasso)) {
-              l <- lambdas_lasso[i]
-              y_hat_out2 <- predicciones_lasso[, i]
-              r22 <- R2_Score(y_pred = y_hat_out2, y_true = test$log_ing_per)
-              rmse2 <- RMSE(y_pred = y_hat_out2, y_true = test$log_ing_per)
-              resultado <- data.frame(Modelo = "Lasso",
-                                      Muestra = "Fuera",
-                                      Lambda = l,
-                                      R2_Score = r22, 
-                                      RMSE = rmse2)
-              resultados_lasso <- bind_rows(resultados_lasso, resultado)
-              }
-          
-#-----------Gráfico RMSE Lasso
-            ggplot(resultados_lasso, aes(x = Lambda, y = RMSE)) +
-            geom_point() +
-            geom_line() +
-            theme_bw() +
-            scale_y_continuous(labels = scales::comma)
-#-----------Gráfico R2
-            ggplot(resultados_lasso, aes(x = Lambda, y = R2_Score)) +
-            geom_point() +
-            geom_line() +
-            theme_bw() +
-            scale_y_continuous(labels = scales::comma)
-          
-          
-            filtro <- resultados_lasso$RMSE == min(resultados_lasso$RMSE)
-            mejor_lambda_lasso <- resultados_lasso[filtro, "Lambda"]
-            
-            # Guardamos el mejor Lasso
-            y_hat_in2 <- predict.glmnet(modelo_lasso,
-                                      newx = as.matrix(cx),
-                                      s = mejor_lambda_lasso)
-            y_hat_out2 <- predict.glmnet(modelo_lasso,
-                                       newx = as.matrix(cx),
-                                       s = mejor_lambda_lasso)
-          
-            # Métricas dentro y fuera de muestra. Paquete MLmetrics
-            r2_in2 <- R2_Score(y_pred = exp(y_hat_in2), y_true = exp(train$log_ing_per))
-            rmse_in2 <- RMSE(y_pred = exp(y_hat_in2), y_true = exp(train$log_ing_per))
-            
-            r2_out2 <- R2_Score(y_pred = exp(y_hat_out2), y_true = exp(test$log_ing_per))
-            rmse_out2 <- RMSE(y_pred = exp(y_hat_out2), y_true = exp(test$log_ing_per))
-            
-            # Guardamos el desempeño
-            resultados2 <- data.frame(Modelo = "Lasso", 
-                                    Muestra = "Dentro",
-                                    R2_Score = r2_in2, RMSE = rmse_in2) %>%
-            rbind(data.frame(Modelo = "Lasso", 
-                             Muestra = "Fuera",
-                             R2_Score = r2_out2, RMSE = rmse_out2))
-          
-            # Juntamos resultados con regresión lineal
-            resultados <- rbind(resultados, resultados2)
 
 #----------------------------------------------------- R I D G E ------------------------------------------------------
+            # Matrices de entrenamiento y test
+            # ==============================================================================
+            x_train <- model.matrix(fat~., data = datos_train)[, -1]
+            y_train <- datos_train$fat
+            
+            x_test <- model.matrix(fat~., data = datos_test)[, -1]
+            y_test <- datos_test$fat
+            
+            
+            # Creación y entrenamiento del modelo
+            # ==============================================================================
+            # Para obtener un ajuste con regularización Ridge se indica argumento alpha=0.
+            # Si no se especifica valor de lambda, se selecciona un rango automático.
+            modelo <- glmnet(
+              x           = x_train,
+              y           = y_train,
+              alpha       = 0,
+              nlambda     = 100,
+              standardize = TRUE
+            )
+            
+            # Evolución de los coeficientes en función de lambda
+            # ==============================================================================
+            regularizacion <- modelo$beta %>% 
+              as.matrix() %>%
+              t() %>% 
+              as_tibble() %>%
+              mutate(lambda = modelo$lambda)
+            
+            regularizacion <- regularizacion %>%
+              pivot_longer(
+                cols = !lambda, 
+                names_to = "predictor",
+                values_to = "coeficientes"
+              )
+            
+            regularizacion %>%
+              ggplot(aes(x = lambda, y = coeficientes, color = predictor)) +
+              geom_line() +
+              scale_x_log10(
+                breaks = trans_breaks("log10", function(x) 10^x),
+                labels = trans_format("log10", math_format(10^.x))
+              ) +
+              labs(title = "Coeficientes del modelo en función de la regularización") +
+              theme_bw() +
+              theme(legend.position = "none")
+            
+            # Mejor valor lambda encontrado
+            # ==============================================================================
+            paste("Mejor valor de lambda encontrado:", cv_error$lambda.min)
+            
+            # Predicciones de entrenamiento
+            # ==============================================================================
+            predicciones_train <- predict(modelo, newx = x_train)
+            
+            # MSE de entrenamiento
+            # ==============================================================================
+            training_mse <- mean((predicciones_train - y_train)^2)
+            paste("Error (mse) de entrenamiento:", training_mse)
+            
+            # Predicciones de test
+            # ==============================================================================
+            predicciones_test <- predict(modelo, newx = x_test)
+            
+            # MSE de test
+            # ==============================================================================
+            test_mse_ridge <- mean((predicciones_test - y_test)^2)
+            paste("Error (mse) de test:", test_mse_ridge)
             
 #-------------------------------------------------------------------------------------------------------------------------------------
 #                                   M o d e l o s  d e  C l a s i f i c a c i ó n
