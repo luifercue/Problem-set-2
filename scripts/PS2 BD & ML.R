@@ -201,8 +201,8 @@
 
 #----------Bases para predicciòn 
             #train
-            x_continuas=(train[,c(3,4,6,7,14,18,22,24,26)])
-            x_categoricas=(train[,c(2,5,17,19,20,21,25)])
+            x_continuas=(train[,c(3,4,14,16,21,22,23)])
+            x_categoricas=(train[,c(2,5,6,7,15,17,18,19,20)])
             # Ahora procedemos a dummyficar la base
             x_categoricas<- model.matrix(~ ., x_categoricas) %>%
               as.data.frame #%>%
@@ -210,8 +210,8 @@
             predicciones_general<-predicciones_general[,-1]
             
             #test
-            x_continuas_t=(test[,c(3,4,6,7,14,18,22,24,26)])
-            x_categoricas_t=(test[,c(2,5,17,19,20,21,25)])
+            x_continuas_t=(test[,c(3,4,14,16,21,22,23)])
+            x_categoricas_t=(test[,c(2,5,6,7,15,17,18,19,20)])
             # Ahora procedemos a dummyficar la base
             x_categoricas_t<- model.matrix(~ ., x_categoricas_t) %>%
               as.data.frame 
@@ -823,8 +823,10 @@ table(test$Pobre,y_hat_lasso_outsample1)
 #-------------------------------------------------L o g i t  y  P r o b i t----------------------------------------------------------------------------
         ## modelo a ajustar
         model <- as.formula("train$Pobre ~ .")
-        as.matrix(cx)
-        cx<- as.data.frame(cx)
+        as.matrix(predicciones_general)
+        cx<- as.data.frame(predicciones_general_t)
+        as.matrix(predicciones_general)
+        cxt<- as.data.frame(predicciones_general_t)
         ## estimación logit
         logit <- glm(model , family=binomial(link="logit") , data=cx)
         tidy(logit)
@@ -840,6 +842,8 @@ table(test$Pobre,y_hat_lasso_outsample1)
         train$pob_pob = predict(probit , newdata=cx , type="response")
         head(train)
         
+        test$pob_log = predict(logit , newdata=cxt , type="response")
+        test$pob_pob = predict(probit , newdata=cxt , type="response")
         ## plot predictions
         ggplot(data=train, mapping=aes(Pobre,pob_pob)) + 
         geom_boxplot(aes(fill=as.factor(Pobre))) + theme_test()
@@ -849,6 +853,9 @@ table(test$Pobre,y_hat_lasso_outsample1)
         train$prob_025 = ifelse(train$pob_pob<rule,1,0)
         train$log_025 = ifelse(train$pob_log<rule,1,0)
         head(train)
+        
+        test$prob_025 = ifelse(test$pob_pob<rule,1,0)
+        test$log_025 = ifelse(test$pob_log<rule,1,0)
         
         table(train$Pobre, train$prob_025)
              0     1
@@ -863,10 +870,19 @@ table(test$Pobre,y_hat_lasso_outsample1)
                                    type = "prob")[,1]
 #-----------Cladificaciòn
         ## probit
-        cm_prob = confusionMatrix(data=factor(test$prob_025) , 
-                                  reference=factor(test$Pobre) , 
+        cm_prob_in = confusionMatrix(data=factor(train$prob_025) , 
+                                  reference=factor(train$Pobre) , 
                                   mode="sens_spec" , positive="1")
-        cm_prob
+        cm_prob_out =confusionMatrix(data=factor(test$prob_025) , 
+                                     reference=factor(test$Pobre) , 
+                                     mode="sens_spec" , positive="1")
+        
+        cm_prob_in = confusionMatrix(data=factor(train$log_025) , 
+                                     reference=factor(train$Pobre) , 
+                                     mode="sens_spec" , positive="1")
+        cm_prob_out =confusionMatrix(data=factor(test$log_025) , 
+                                     reference=factor(test$Pobre) , 
+                                     mode="sens_spec" , positive="1")
         
                       Reference
         Prediction     0     1
@@ -889,30 +905,466 @@ table(test$Pobre,y_hat_lasso_outsample1)
              Prevalence : 0.19990         
          Detection Rate : 0.04479         
    Detection Prevalence : 0.69843         
-      Balanced Accuracy : 0.20356         
-                                          
-#---------------------------------------- T r e e s ---------------------------------
-  
+      Balanced Accuracy : 0.20356
+      #metricas
+      
+      acc_in <- Accuracy(y_true = train$Pobre, y_pred = train$prob_025)
+      acc_in <- round(100*acc_in, 2)
+      pre_in <- Precision(y_true = train$Pobre, y_pred = train$prob_025)
+      pre_in <- round(100*pre_in, 2)
+      recall_in <- Recall(y_true = train$Pobre, y_pred = train$prob_025)
+      recall_in <- round(100*recall_in, 2)
+      f1_in <- F1_Score(y_true = train$Pobre, y_pred = train$prob_025)
+      f1_in <- round(100*f1_in, 2)
+      
+      acc_out <- Accuracy(y_true = test$Pobre, y_pred = test$prob_025)
+      acc_out <- round(100*acc_out, 2)
+      pre_out <- Precision(y_true = test$Pobre, y_pred = test$prob_025)
+      pre_out <- round(100*pre_out, 2)
+      recall_out <- Recall(y_true = test$Pobre, y_pred = test$prob_025)
+      recall_out <- round(100*recall_out, 2)
+      f1_out <- F1_Score(y_true = test$Pobre, y_pred = test$prob_025)
+      f1_out <- round(100*f1_out, 2)
+      
+      resultados <- data.frame(Modelo = "Modelo 2: Grid search", Base = c("Train", "Test"), 
+                                Accuracy = c(acc_in, acc_out), 
+                                Precision = c(pre_in, pre_out),
+                                Recall = c(recall_in, recall_out),
+                                F1 = c(f1_in, f1_out))
+      
+      resultados #probit
+      
+      #Modelo  Base Accuracy Precision Recall    F1
+      #1 Modelo 2: Grid search Train    15.99     40.97  11.35 17.78
+      #2 Modelo 2: Grid search  Test    16.01     40.73  11.37 17.77
+      
+      
+      acc_in <- Accuracy(y_true = train$Pobre, y_pred = train$log_025)
+      acc_in <- round(100*acc_in, 2)
+      pre_in <- Precision(y_true = train$Pobre, y_pred = train$log_025)
+      pre_in <- round(100*pre_in, 2)
+      recall_in <- Recall(y_true = train$Pobre, y_pred = train$log_025)
+      recall_in <- round(100*recall_in, 2)
+      f1_in <- F1_Score(y_true = train$Pobre, y_pred = train$log_025)
+      f1_in <- round(100*f1_in, 2)
+      
+      acc_out <- Accuracy(y_true = test$Pobre, y_pred = test$log_025)
+      acc_out <- round(100*acc_out, 2)
+      pre_out <- Precision(y_true = test$Pobre, y_pred = test$log_025)
+      pre_out <- round(100*pre_out, 2)
+      recall_out <- Recall(y_true = test$Pobre, y_pred = test$log_025)
+      recall_out <- round(100*recall_out, 2)
+      f1_out <- F1_Score(y_true = test$Pobre, y_pred = test$log_025)
+      f1_out <- round(100*f1_out, 2)
+      
+      resultados <- data.frame(Modelo = "Modelo : Grid search", Base = c("Train", "Test"), 
+                               Accuracy = c(acc_in, acc_out), 
+                               Precision = c(pre_in, pre_out),
+                               Recall = c(recall_in, recall_out),
+                               F1 = c(f1_in, f1_out))
+      
+      resultados #logit
+      
+      
+      #Modelo  Base Accuracy Precision Recall    F1
+      #1 Modelo : Grid search Train    15.72     40.19  10.93 17.19
+      #2 Modelo : Grid search  Test    15.73     39.94  10.98 17.22
+      
+  #-----------------------------arbol1------------------------------------------
+      
+      # Convertimos la marca a factor
+      train$Pobre <- factor(train$Pobre)
+      test$Pobre <- factor(test$Pobre)
+      
+      # Creamos modelo
+      modelo2 <- decision_tree(
+        cost_complexity = tune(),
+        tree_depth = tune(),
+        min_n = tune()
+      ) %>%
+        set_engine("rpart") %>%
+        set_mode("classification")
+      #creamos grilla
+      tree_grid <- crossing(
+        cost_complexity = c(0.0001),
+        min_n = c(2, 14, 27),
+        tree_depth = c(4, 8, 16)
+      )
+      #definimos CV
+      
+      set.seed(666)
+      folds <- vfold_cv(train, strata = Pobre, v = 5)
+      set.seed(666)
+      modelo2_cv <- tune_grid(
+        modelo2,
+        Pobre ~ Dominio+Ncuartos+Ncuartos_dormir+Tipo_vivienda+Nper+Npersug+hacinamiento+sexo_jefe_hogar+
+          edad_jefe_hogar+rs_jefe_hogar+edu_jefe_hogar+Horas_trabajo2+ocupacion_jefe_hogar+subsidio+Horas_trabajo1+
+          +arriendo_estimado,
+        resamples = folds,
+        grid = tree_grid,
+        metrics = metric_set(f_meas),
+        control = control_grid(event_level = 'second')
+      )
+      
+      collect_metrics(modelo2_cv)
+      autoplot(modelo2_cv) + 
+        theme_light() +
+        labs(y = "F1 Score")
+      
+      # Escogemos el mejor modelo
+      modelo2 <- finalize_model(modelo2, select_best(modelo2_cv))
+      
+      # Entrenamos el mejor modelo
+      modelo2_fit <- fit(modelo2, Pobre ~ Dominio+Ncuartos+Ncuartos_dormir+Tipo_vivienda+Nper+Npersug+hacinamiento+sexo_jefe_hogar+
+                           edad_jefe_hogar+rs_jefe_hogar+edu_jefe_hogar+Horas_trabajo2+ocupacion_jefe_hogar+subsidio+Horas_trabajo1+
+                           +arriendo_estimado, train)
+      
+      # Gráfica del modelo
+      fancyRpartPlot(modelo2_fit$fit, main = "Árbol con fine tuning", 
+                     sub = "")
+      
+      # Importancia de las variables
+      importancia <- varImp(modelo2_fit$fit)
+      importancia <- importancia %>%
+        data.frame() %>%
+        rownames_to_column(var = "Variable") %>%
+        mutate(Porcentaje = Overall/sum(Overall)) %>%
+        filter(Porcentaje > 0) %>%
+        arrange(desc(Porcentaje))
+      
+      ggplot(importancia, aes(x = Porcentaje, 
+                              y = reorder(Variable, Porcentaje))) +
+        geom_bar(stat = "identity", fill = "darkblue", alpha = 0.8) +
+        labs(y = "Variable") +
+        scale_x_continuous(labels = scales::percent) +
+        theme_classic()
+      
+      # Evaluamos
+      
+      y_hat_insample <- predict(modelo2_fit, train)$.pred_class
+      y_hat_outsample <- predict(modelo2_fit, test)$.pred_class
+      
+      
+      
+      
+      cm_insample<-confusionMatrix(data=factor(y_hat_insample) , 
+                                   reference=factor(train$Pobre) , 
+                                   mode="sens_spec" , positive="1")$table
+      
+      
+      cm_outsample<-confusionMatrix(data=factor(y_hat_outsample) , 
+                                    reference=factor(test$Pobre) , 
+                                    mode="sens_spec" , positive="1")$table
+      
+      # Confusion Matrix insample
+      cm_insample
+      # Confusion Matrix outsample
+      cm_outsample
+      
+      #metricas
+      
+      acc_in <- Accuracy(y_true = train$Pobre, y_pred = y_hat_insample)
+      acc_in <- round(100*acc_in, 2)
+      pre_in <- Precision(y_true = train$Pobre, y_pred = y_hat_insample)
+      pre_in <- round(100*pre_in, 2)
+      recall_in <- Recall(y_true = train$Pobre, y_pred = y_hat_insample)
+      recall_in <- round(100*recall_in, 2)
+      f1_in <- F1_Score(y_true = train$Pobre, y_pred = y_hat_insample)
+      f1_in <- round(100*f1_in, 2)
+      
+      acc_out <- Accuracy(y_true = test$Pobre, y_pred = y_hat_outsample)
+      acc_out <- round(100*acc_out, 2)
+      pre_out <- Precision(y_true = test$Pobre, y_pred = y_hat_outsample)
+      pre_out <- round(100*pre_out, 2)
+      recall_out <- Recall(y_true = test$Pobre, y_pred = y_hat_outsample)
+      recall_out <- round(100*recall_out, 2)
+      f1_out <- F1_Score(y_true = test$Pobre, y_pred = y_hat_outsample)
+      f1_out <- round(100*f1_out, 2)
+      
+      resultados2 <- data.frame(Modelo = "Modelo 2: Grid search", Base = c("Train", "Test"), 
+                                Accuracy = c(acc_in, acc_out), 
+                                Precision = c(pre_in, pre_out),
+                                Recall = c(recall_in, recall_out),
+                                F1 = c(f1_in, f1_out))
+      
+      resultados2
+      
+      #Modelo  Base Accuracy Precision Recall    F1
+      #1 Modelo 2: Grid search Train    88.34     90.69  95.20 92.89
+      #2 Modelo 2: Grid search  Test    85.21     88.78  93.27 90.97
+      
+      
+#-----------------------------arbol2------------------------------------------
+      
+      
+      # Convertimos la marca a factor
+      train$Pobre <- factor(train$Pobre)
+      test$Pobre <- factor(test$Pobre)
+      
+      # Creamos modelo
+      modelo3 <- decision_tree(
+        cost_complexity = tune(),
+        tree_depth = tune(),
+        min_n = tune()
+      ) %>%
+        set_engine("rpart") %>%
+        set_mode("classification")
+      #creamos grilla
+      tree_grid <- crossing(
+        cost_complexity = c(0.0001),
+        min_n = c(2, 14, 27),
+        tree_depth = c(4, 8, 16)
+      )
+      #definimos CV
+      
+      set.seed(666)
+      folds <- vfold_cv(train, strata = Pobre, v = 5)
+      set.seed(666)
+      modelo3_cv <- tune_grid(
+        modelo3,
+        Pobre ~ Dominio+Nper+Npersug+hacinamiento
+        +rs_jefe_hogar+ocupacion_jefe_hogar+subsidio+Horas_trabajo1+
+          +arriendo_estimado,
+        resamples = folds,
+        grid = tree_grid,
+        metrics = metric_set(f_meas),
+        control = control_grid(event_level = 'second')
+      )
+      
+      collect_metrics(modelo3_cv)
+      autoplot(modelo3_cv) + 
+        theme_light() +
+        labs(y = "F1 Score")
+      
+      # Escogemos el mejor modelo
+      modelo3 <- finalize_model(modelo3, select_best(modelo3_cv))
+      
+      # Entrenamos el mejor modelo
+      modelo3_fit <- fit(modelo3, Pobre ~ Dominio+Nper+Npersug+hacinamiento
+                         +rs_jefe_hogar+ocupacion_jefe_hogar+subsidio+Horas_trabajo1+
+                           +arriendo_estimado, train)
+      
+      # Gráfica del modelo
+      fancyRpartPlot(modelo2_fit$fit, main = "Árbol con fine tuning", 
+                     sub = "")
+      
+      # Importancia de las variables
+      importancia <- varImp(modelo3_fit$fit)
+      importancia <- importancia %>%
+        data.frame() %>%
+        rownames_to_column(var = "Variable") %>%
+        mutate(Porcentaje = Overall/sum(Overall)) %>%
+        filter(Porcentaje > 0) %>%
+        arrange(desc(Porcentaje))
+      
+      ggplot(importancia, aes(x = Porcentaje, 
+                              y = reorder(Variable, Porcentaje))) +
+        geom_bar(stat = "identity", fill = "darkblue", alpha = 0.8) +
+        labs(y = "Variable") +
+        scale_x_continuous(labels = scales::percent) +
+        theme_classic()
+      
+      # Evaluamos
+      
+      y_hat_insample <- predict(modelo3_fit, train)$.pred_class
+      y_hat_outsample <- predict(modelo3_fit, test)$.pred_class
+      
+      
+      cm_insample<-confusionMatrix(data=factor(y_hat_insample) , 
+                                   reference=factor(train$Pobre) , 
+                                   mode="sens_spec" )$table
+      
+      
+      cm_outsample<-confusionMatrix(data=factor(y_hat_outsample) , 
+                                    reference=factor(test$Pobre) , 
+                                    mode="sens_spec")$table
+      
+      
+      # Confusion Matrix insample
+      cm_insample
+      # Confusion Matrix outsample
+      cm_outsample
+      
+      #metricas
+      
+      acc_in <- Accuracy(y_true = train$Pobre, y_pred = y_hat_insample)
+      acc_in <- round(100*acc_in, 2)
+      pre_in <- Precision(y_true = train$Pobre, y_pred = y_hat_insample)
+      pre_in <- round(100*pre_in, 2)
+      recall_in <- Recall(y_true = train$Pobre, y_pred = y_hat_insample)
+      recall_in <- round(100*recall_in, 2)
+      f1_in <- F1_Score(y_true = train$Pobre, y_pred = y_hat_insample)
+      f1_in <- round(100*f1_in, 2)
+      
+      acc_out <- Accuracy(y_true = test$Pobre, y_pred = y_hat_outsample)
+      acc_out <- round(100*acc_out, 2)
+      pre_out <- Precision(y_true = test$Pobre, y_pred = y_hat_outsample)
+      pre_out <- round(100*pre_out, 2)
+      recall_out <- Recall(y_true = test$Pobre, y_pred = y_hat_outsample)
+      recall_out <- round(100*recall_out, 2)
+      f1_out <- F1_Score(y_true = test$Pobre, y_pred = y_hat_outsample)
+      f1_out <- round(100*f1_out, 2)
+      
+      resultados3 <- data.frame(Modelo = "Modelo 3: Grid search", Base = c("Train", "Test"), 
+                                Accuracy = c(acc_in, acc_out), 
+                                Precision = c(pre_in, pre_out),
+                                Recall = c(recall_in, recall_out),
+                                F1 = c(f1_in, f1_out))
+      
+      resultados3
+      
+      
+      #Modelo  Base Accuracy Precision Recall    F1
+      #1 Modelo 3: Grid search Train    87.16     89.57  95.01 92.21
+      #2 Modelo 3: Grid search  Test    85.27     88.43  93.83 91.05
+      
+      
+      
+      
+    #-----------------------------arbol3------------------------------------------
+      
+      
+      # Convertimos la marca a factor
+      train$Pobre <- factor(train$Pobre)
+      test$Pobre <- factor(test$Pobre)
+      
+      # Creamos modelo
+      modelo <- decision_tree(
+        cost_complexity = tune(),
+        tree_depth = tune(),
+        min_n = tune()
+      ) %>%
+        set_engine("rpart") %>%
+        set_mode("classification")
+      #creamos grilla
+      tree_grid <- crossing(
+        cost_complexity = c(0.0001),
+        min_n = c(2, 14, 27),
+        tree_depth = c(4, 8, 16)
+      )
+      #definimos CV
+      
+      set.seed(666)
+      folds <- vfold_cv(train, strata = Pobre, v = 5)
+      set.seed(666)
+      modelo_cv <- tune_grid(
+        modelo,
+        Pobre ~ hacinamiento
+        +rs_jefe_hogar+subsidio+
+          +arriendo_estimado,
+        resamples = folds,
+        grid = tree_grid,
+        metrics = metric_set(f_meas),
+        control = control_grid(event_level = 'second')
+      )
+      
+      collect_metrics(modelo_cv)
+      autoplot(modelo_cv) + 
+        theme_light() +
+        labs(y = "F1 Score")
+      
+      # Escogemos el mejor modelo
+      modelo <- finalize_model(modelo, select_best(modelo_cv))
+      
+      # Entrenamos el mejor modelo
+      modelo_fit <- fit(modelo, Pobre ~ rs_jefe_hogar+hacinamiento+subsidio+
+                          +arriendo_estimado, train)
+      
+      # Gráfica del modelo
+      fancyRpartPlot(modelo_fit$fit, main = "Árbol con fine tuning", 
+                     sub = "")
+      
+      # Importancia de las variables
+      importancia <- varImp(modelo_fit$fit)
+      importancia <- importancia %>%
+        data.frame() %>%
+        rownames_to_column(var = "Variable") %>%
+        mutate(Porcentaje = Overall/sum(Overall)) %>%
+        filter(Porcentaje > 0) %>%
+        arrange(desc(Porcentaje))
+      
+      ggplot(importancia, aes(x = Porcentaje, 
+                              y = reorder(Variable, Porcentaje))) +
+        geom_bar(stat = "identity", fill = "darkblue", alpha = 0.8) +
+        labs(y = "Variable") +
+        scale_x_continuous(labels = scales::percent) +
+        theme_classic()
+      
+      # Evaluamos
+      
+      y_hat_insample <- predict(modelo_fit, train)$.pred_class
+      y_hat_outsample <- predict(modelo_fit, test)$.pred_class
+      
+      
+      cm_insample<-confusionMatrix(data=factor(y_hat_insample) , 
+                                   reference=factor(train$Pobre) , 
+                                   mode="sens_spec" )$table
+      
+      
+      cm_outsample<-confusionMatrix(data=factor(y_hat_outsample) , 
+                                    reference=factor(test$Pobre) , 
+                                    mode="sens_spec")$table
+      
+      
+      # Confusion Matrix insample
+      cm_insample
+      # Confusion Matrix outsample
+      cm_outsample
+      
+      #metricas
+      
+      acc_in <- Accuracy(y_true = train$Pobre, y_pred = y_hat_insample)
+      acc_in <- round(100*acc_in, 2)
+      pre_in <- Precision(y_true = train$Pobre, y_pred = y_hat_insample)
+      pre_in <- round(100*pre_in, 2)
+      recall_in <- Recall(y_true = train$Pobre, y_pred = y_hat_insample)
+      recall_in <- round(100*recall_in, 2)
+      f1_in <- F1_Score(y_true = train$Pobre, y_pred = y_hat_insample)
+      f1_in <- round(100*f1_in, 2)
+      
+      acc_out <- Accuracy(y_true = test$Pobre, y_pred = y_hat_outsample)
+      acc_out <- round(100*acc_out, 2)
+      pre_out <- Precision(y_true = test$Pobre, y_pred = y_hat_outsample)
+      pre_out <- round(100*pre_out, 2)
+      recall_out <- Recall(y_true = test$Pobre, y_pred = y_hat_outsample)
+      recall_out <- round(100*recall_out, 2)
+      f1_out <- F1_Score(y_true = test$Pobre, y_pred = y_hat_outsample)
+      f1_out <- round(100*f1_out, 2)
+      
+      resultados <- data.frame(Modelo = "Modelo : Grid search", Base = c("Train", "Test"), 
+                               Accuracy = c(acc_in, acc_out), 
+                               Precision = c(pre_in, pre_out),
+                               Recall = c(recall_in, recall_out),
+                               F1 = c(f1_in, f1_out))
+      
+      resultados
+      
+      
+      #Modelo  Base Accuracy Precision Recall    F1
+      #1 Modelo : Grid search Train    83.27     85.54  95.18 90.10
+      # 2 Modelo : Grid search  Test    83.00     85.40  94.93 89.92
+      
+      
+      
 #--------------------------------- R a n d o m   F o r e s t  ---------------------------------
-#--------------- Tunear la grilla
-        gbmGrid <-  expand.grid(interaction.depth = c(1, 5, 9), 
-                                n.trees = (1:30)*50, 
-                                shrinkage = 0.1,
-                                n.minobsinnode = 20)
-        
-        nrow(gbmGrid)
-        
-        set.seed(825)
-        gbmFit2 <- train(Class ~ ., data = training, 
-                         method = "gbm", 
-                         trControl = fitControl, 
-                         verbose = FALSE, 
-                         ## Now specify the exact models 
-                         ## to evaluate:
-                         tuneGrid = gbmGrid)
-        gbmFit2
-        
-        
+      
+      
+      
+      
+      
+      
+      
+      
+      
+      
+      
+      
+      
+      
+      
+      
+      
+
         
 #---------------------------------M E J O R A R   M O D E L O   G A N A D O R ---------------------------------
 #------------------------------------------------ T U N E A R  ---------------------------------------
@@ -1040,3 +1492,10 @@ table(test$Pobre,y_hat_lasso_outsample1)
         evalResults$Roc <- predict(mylogit lasso roc,
                                    newdata = evaluation,
                                    type = "prob")[,1]
+        
+        
+        
+        
+        
+        
+        
