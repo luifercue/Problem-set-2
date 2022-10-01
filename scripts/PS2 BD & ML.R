@@ -53,61 +53,7 @@
     library(pacman)
     p_load(AER, tidyverse, caret, MLmetrics, tidymodels, themis)
     
-    colnames(train_hogares)
-    for i {
-      "id"          
-      "Clase"       
-      "Dominio"      
-      "Lp"          
-      "Pobre"     
-      "Npobres"     
-      "Depto"       
-      "Hacinamiento= Nper/P5010"
-      "P5090= Vivienda propia totalmente pagado, propia la están pagando, 
-      en arriendo o subarriendo, usufructo, posesión sin título"
-      "PAUG=Npersug/Nper= Número de personas en la unidad de gasto"
-      "Ingtotugarr=Ingreso total de la unidad de gasto con la imputación del arriendo" 
-      "Ingpcug=Ingreso per capita de Ingtotugarr" }
-    colnames(train_personas)
-    for i ¨{
-      "id"        
-      "Clase"     
-      "estrato=Estrato1 (media)" 
-      "Sexo_jefe_hog=P6020 y P6050"    
-      "edad_jefe_hogar=P6020 P6050" 
-      "rs_jefe_hog (P6100 P6050)"     
-      "educ_jefe_hog (P6210)"     
-      "P6430 
-          a: obrero empleado empresa particular
-          b. obrero empleado del gob
-          c. empleado doméstico
-          d. Trabajador cuenta propia
-          e. Patrón empleador
-          f. Trabajador familiar sin remuneración
-          g. Trabajador sin remuneración externo
-          h. jornalero peón 
-          i. otro
-          
-          Clasificar jefe de hogar       "     
-      
-      #subsidios (El hogar recibe algún subsidio)
-      "P6585s1 alimentación" "P6585s2 transporte"  "P6585s3 familiar"
-      "P6585s4 educativo" "1=si, 9=NS"
-      
-      "P6800 (suma de horas 1er trabajo por hogar)"    
-      "P6920 (cotiza 1=si, 2=no, 3=pensionado) jefe hogar " 
-      "P7045 (suma horas 2do trabajo por hogar) "   
-      "PET+OC trabajo infantil dummy"
-      "TD=Des ds/pet x hogar"
-      
-      "estrato, sexo_jefe_hog,edad_jefe_hog, hacinamiento, 
-      paug,rs_jefe_hog, educ_jefe_hog, ocupacion_jefe_hog, 
-      sub_hog, horas_tra_hogar, cot_jefe_hog,horas_tra_hogar_2,
-      sum_pet, sum_des"
-      
-      26 variables
-    }
-    
+
 #----------------------------------- C o n s t r u c c i o n   d e   l a   b a s e ---------------------------------------
         #Sexo jefe hogar
             sex_jefe_hog<- as.data.frame(ifelse((train_personas$P6020==1 & train_personas$P6050==1),1,0))
@@ -209,6 +155,7 @@
             
             #back up
             train_hogares2<-train_hogares
+            
             #Logaritmo del ingreso percapita
             ing_per = train_hogares2$Ingpcug
             ing_per<-ifelse((ing_per)==0,1,ing_per)
@@ -248,7 +195,7 @@
                          trControl = trainControl(method = "cv", number = 10),
                          method = "lm")
             
-            ols$coefnames
+            ols$results
             #intercept      RMSE  Rsquared      MAE    RMSESD  RsquaredSD       MAESD
             #1      TRUE 1.036285 0.3469095 0.538377 0.0333237 0.008536496 0.007743297
 
@@ -270,11 +217,11 @@
               as.data.frame 
             predicciones_general_t<- cbind(x_categoricas_t,x_continuas_t)
             predicciones_general_t<-predicciones_general_t[,-1]
-            
             names(predicciones_general_t)[names(predicciones_general_t)=='`DominioRESTO URBANO`']<-'DominioRESTO URBANO'
             names(predicciones_general_t)[names(predicciones_general_t)=='`DominioSANTA MARTA`']<-"DominioSANTA MARTA"
+            predicciones_general_t<-as.matrix(predicciones_general_t)
+            predicciones_general<-as.matrix(predicciones_general)
             
-
  #----------Problema de clasificaciòn
             y_hat_ols_insample<-predict(ols$finalModel,predicciones_general)
             y_hat_ols_outsample<-predict(ols$finalModel,predicciones_general_t)
@@ -354,7 +301,7 @@
                 x           = x_train,
                 y           = y_train,
                 alpha       = 1,
-                nlambda     = 100,
+                nlambda     = 300,
                 standardize = TRUE
               )
               
@@ -438,6 +385,12 @@
               test_mse_lasso <- mean((predicciones_test - y_test)^2)
               paste("Error (mse) de test:", test_mse_lasso)
               
+              
+              r22 <- R2_Score(y_pred = predicciones_test, y_true = test$log_ing_per)
+              rmse2 <- RMSE(y_pred = predicciones_test, y_true = test$log_ing_per)
+              mae(test$log_ing_per, predicciones_test)   
+              
+              is.numeric(predicciones_test)
               #----------Problema de clasificaciòn
               y_hat_lasso_insample<-predicciones_train
               y_hat_lasso_outsample<-predicciones_test
@@ -496,7 +449,7 @@ table(test$Pobre,y_hat_lasso_outsample1)
               x           = x_train,
               y           = y_train,
               alpha       = 0,
-              nlambda     = 100,
+              nlambda     = 500,
               standardize = TRUE
             )
             
@@ -533,16 +486,19 @@ table(test$Pobre,y_hat_lasso_outsample1)
             # Predicciones de entrenamiento
             # ==============================================================================
              predicciones_train <- predict(modelo, newx = predicciones_general)
-            
             # MSE de entrenamiento
             # ==============================================================================
             training_mse <- mean((predicciones_train - y_train)^2)
             paste("Error (mse) de entrenamiento:", training_mse)
             
+            r22 <- R2_Score(y_pred = predicciones_test, y_true = test$log_ing_per)
+            rmse2 <- RMSE(y_pred = predicciones_test, y_true = test$log_ing_per)
+            mae(test$log_ing_per, predicciones_test)   
+            
+            
             # Predicciones de test
             # ==============================================================================
             predicciones_test <- predict(modelo, newx = predicciones_general_t)
-            
             # MSE de test
             # ==============================================================================
             test_mse_ridge <- mean((predicciones_test - y_test)^2)
@@ -628,7 +584,10 @@ table(test$Pobre,y_hat_lasso_outsample1)
              "mean(en$resample$RMSE) 1.036258
              MSE was used to select the optimal model using the smallest value.
              The final values used for the model were alpha = 0.6666667 and lambda = 1e-04      "        
-  
+            r22 <- R2_Score(y_pred = predicciones_test, y_true = test$log_ing_per)
+            rmse2 <- RMSE(y_pred = predicciones_test, y_true = test$log_ing_per)
+            mae(test$log_ing_per, predicciones_test)   
+            
              #Ploting EN
              plot(en, main = "Elastic Net Regression")
              #plotting important variables
@@ -696,10 +655,10 @@ table(test$Pobre,y_hat_lasso_outsample1)
               en_prob
               onfusion Matrix and Statistics
               
-              Reference
+                          Reference
               Prediction     0     1
-              0 24915  5995
-              1  1433   649
+                          0 24915  5995
+                          1  1433   649
               
               Accuracy : 0.7749          
               95% CI : (0.7703, 0.7794)
@@ -721,39 +680,143 @@ table(test$Pobre,y_hat_lasso_outsample1)
                                           
        'Positive' Class : 1 
 #----------------------------------- B a l a n c e o   d e   l a   m u e s t r a ---------------------------------
-
-#---------------------- Oversamplig 
+       
+       x_train<-cbind(x_train,train$log_ing_per)
+       train$Pobre<-as.factor(train$Pobre)
+       
+       
+       #---------------------- Oversamplig 
        set.seed(1103)
-       upSampledTrain <- upSample(x = training,
-                                  y = training$Default,
+       upSampledTrain <- upSample(x = x_train,
+                                  y = train$Pobre,
                                   ## keep the class variable name the same:
                                   yname = "Default")
-       dim(training)
-
-       set.seed(1410)
-       mylogit lasso upsample <- train(
-         Default ~amount+installment+age+ historygood + historypoor + purposeusedcar+ purposegoods.repair + purposeedu + foreigngerman + rentTRdata = upSampledTrain,
-         method = "glmnet",
-         trControl = ctrl,
-         family = "binomial",
-         metric = "ROC",
-         tuneGrid = expand.grid(alpha = 0,lambda=lambda grid),
-         preProcess = c("center", "scale")
+       
+       
+       names(upSampledTrain)[names(upSampledTrain)=='train$log_ing_per']<-"log_ing_per"
+       
+#-------------------------------------------------E L A S T I C   N E T --------------------------------------------------            
+#-------------------------------------------------- B A L A N C E A D O ---------------------------------------------
+       
+       # Model Building : Elastic Net Regression
+       custom <- trainControl(method = "repeatedcv",
+                              number = 10,
+                              repeats = 5,
+                              verboseIter = TRUE)
+       y_train=upSampledTrain$log_ing_per
+       x_train<- upSampledTrain[,-61]       
+       x_train<- x_train[,-60]
+      x_train
+       set.seed(12345)
+       en <- train(y_train~.,
+                   data=cbind(y_train,x_train),
+                   method='glmnet',
+                   tuneGrid =expand.grid(alpha=seq(0,1,length=10),
+                                         lambda = seq(0.0001,0.2,length=5)),
+                   trControl=custom)
+       #Resultados 
+       "mean(en$resample$RMSE) 1.036258
+             MSE was used to select the optimal model using the smallest value.
+             The final values used for the model were alpha = 0.6666667 and lambda = 1e-04      "        
+       r22 <- R2_Score(y_pred = predicciones_test, y_true = test$log_ing_per)
+       rmse2 <- RMSE(y_pred = predicciones_test, y_true = test$log_ing_per)
+       mae(test$log_ing_per, predicciones_test)   
+       
+       #Ploting EN
+       plot(en, main = "Elastic Net Regression")
+       #plotting important variables
+       plot(varImp(en,scale=TRUE))
+       
+       
+       #----------Problema de clasificaciòn
+       modelo<- glmnet(
+         x           = x_train,
+         y           = y_train,
+         alpha       = 0.444,
+         lambda      = 0.0001,
+         standardize = TRUE
        )
+       modelo$beta
        
+       predicciones_train <- predict(modelo, newx = x_train)
+       x_train<-as.matrix(x_train)
+       predicciones_test <- predict(modelo, newx = predicciones_general_t)
        
+       y_hat_en_insample<-predicciones_train
+       y_hat_en_outsample<-predicciones_test
        
+       y_hat_en_insample1 <- as.numeric(ifelse(exp(y_hat_en_insample)<train$Lp,1,0))
+       y_hat_en_outsample1 <- as.numeric(ifelse(exp(y_hat_en_outsample)<test$Lp,1,0))
        
+       #-----------Métricas para matriz 
+       acc_insample1122 <- Accuracy(y_pred = y_hat_en_insample1, y_true = train$Pobre)
+       acc_outsample1122 <- Accuracy(y_pred = y_hat_en_outsample1, y_true = test$Pobre)
        
-       # Implementamos oversampling
-       train_s$infielTRUE <- factor(train_s$infielTRUE)
-       train_s2 <- recipe(infielTRUE ~ ., data = train_s) %>%
-         themis::step_smote(infielTRUE, over_ratio = 1) %>%
-         prep() %>%
-         bake(new_data = NULL)
+       pre_insample1122 <- Precision(y_pred = y_hat_en_insample1, y_true = train$Pobre, positive = 1)
+       pre_outsample1122 <- Precision(y_pred = y_hat_en_outsample1, y_true = test$Pobre, positive = 1)
        
-       prop.table(table(train_s$infielTRUE))
-  
+       rec_insample1122<- Recall(y_pred = y_hat_en_insample1, y_true = train$Pobre, positive = 1)
+       rec_outsample1122 <- Recall(y_pred = y_hat_en_outsample1, y_true = test$Pobre, positive = 1)
+       
+       f1_insample1122 <- F1_Score(y_pred = y_hat_en_insample1, y_true = train$Pobre, positive = 1)
+       f1_outsample1122 <- F1_Score(y_pred = y_hat_en_outsample1, y_true = test$Pobre, positive = 1)
+       
+       metricas_insample1122 <- data.frame(Modelo = "Regresión lineal", 
+                                           "Muestreo" = NA, 
+                                           "Evaluación" = "Dentro de muestra",
+                                           "Accuracy" = acc_insample1122,
+                                           "Precision" = pre_insample1122,
+                                           "Recall" = rec_insample1122,
+                                           "F1" = f1_insample1122)
+       
+       metricas_outsample1122 <- data.frame(Modelo = "Regresión lineal", 
+                                            "Muestreo" = NA, 
+                                            "Evaluación" = "Fuera de muestra",
+                                            "Accuracy" = acc_outsample1122,
+                                            "Precision" = pre_outsample1122,
+                                            "Recall" = rec_outsample1122,
+                                            "F1" = f1_outsample1122)
+       
+       metricas1122 <- bind_rows(metricas_insample112, metricas_outsample112)
+       metricas1122
+       
+       Modelo Muestreo        Evaluación  Accuracy Precision    Recall        F1
+       1 Regresión lineal       NA Dentro de muestra 0.8421208 0.6706259 0.4130781 0.5112482
+       2 Regresión lineal       NA  Fuera de muestra 0.8414464 0.6704463 0.4182721 0.5151543
+       
+       ## En
+       en_prob = confusionMatrix(data=factor(y_hat_en_outsample1) , 
+                                 reference=factor(test$Pobre) , 
+                                 mode="sens_spec" , positive="1")
+       en_prob
+       onfusion Matrix and Statistics
+       
+       Reference
+       Prediction     0     1
+       0 24915  5995
+       1  1433   649
+       
+       Accuracy : 0.7749          
+       95% CI : (0.7703, 0.7794)
+       No Information Rate : 0.7986          
+       P-Value [Acc > NIR] : 1               
+       
+       Kappa : 0.0583          
+       
+       Mcnemars Test P-Value : <2e-16          
+       
+       Sensitivity : 0.09768         
+       Specificity : 0.94561         
+       Pos Pred Value : 0.31172         
+       Neg Pred Value : 0.80605         
+       Prevalence : 0.20138         
+       Detection Rate : 0.01967         
+       Detection Prevalence : 0.06311         
+       Balanced Accuracy : 0.52165         
+       
+       'Positive' Class : 1 
+       
+ 
 #-------------------------------------------------------------------------------------------------------------------------------------
 #                                   M o d e l o s  d e  C l a s i f i c a c i ó n
 #------------------------------------------------------------------------------------------------------------------------------------
