@@ -1,33 +1,6 @@
-#-------PROBLEM SET 2 
-#Regresión
-#  Lasso 
-#  Ridge 
-#  Elastic Net
-#  regresión normal
-#  subset selection (backward)
-#  medida para mejorar la métrica
+#-------------------------------------------------------PROBLEM SET 2 ------------------------------------------
 
-#Clasificación
-#  K vecinos cercanos 
-#  Arbol
-#  RF
-#  Lasso logit
-#  LDA
-#  Medida para mejorar la métrica
-
-{rm(cm_prob,control, custom,cv_error,cx,cx_t,df_coeficientes_reg, df_coeficientes_reg2, en, en_prob, estrato, jh1, lasso, lasso.mod, logit, 
-   metricas_insample11,metricas_insample111,metricas_insample112,metricas_outsample11, metricas_outsample111, metricas11,
-   metricas_outsample112, metricas111, metricas112, modelo, modelo1, modelo2, modelo3, odelo1, predicciones_test, predicciones_train,
-   probit,regularizacion, resultados, sum_des, sum_pet, trab_inf, train_continuous, trainControl, x,X, x_categoricas, x_categoricas_t, x_continuas, x_continuas_t, x_test, x_train, x2, y_hat_insample,
-   y_hat_insample1, y_hat_outsample, y_hat_outsample1, acc_insample11,acc_insample111,acc_insample112,acc_outsample11,
-   acc_outsample111,acc_outsample112,cot_jefe_hogar, Estrato, f1_insample11, f1_insample111, f1_insample112, f1_outsample11,
-   f1_outsample111, f1_outsample112, jh, lambda, log_ing_per, model, paug, pre_insample11, pre_insample111, pre_insample112, 
-   pre_outsample11, pre_outsample111, pre_outsample112, r2_in1, r2_out1, rec_insample11, rec_insample111,rec_insample112,
-   rec_outsample11, rec_outsample111, rec_outsample112, rmse_in1, rmse_out1, rule, TD, test_mse_lasso, test_mse_ridge, 
-   ti, training_mse, y, y_hat_in1, y_hat_insample1, y_hat_out1, y_hat_outsample1, Y_pobre, y_train, train_oersonas)
-  }
-
-#-------Lectura bases 
+#-------------------------------------------------Lectura bases ------------------------------------------------------------------------------------
     train_hogares<-readRDS(here("../data/train_hogares.Rds"))
     train_personas<-readRDS(here("../data/train_personas.Rds"))
 
@@ -175,7 +148,166 @@
             train_hogares2$ocupacion_jefe_hogar<-as.factor(train_hogares2$ocupacion_jefe_hogar)
 #----------------------------------- E s t a d í s t i c a s   D e s c r i p t i v a s ---------------------------------
           
-              table (train_hogares$Pobre) #131936  33024
+            #----------------------------------- E s t a d í s t i c a s   D e s c r i p t i v a s ---------------------------------
+            library(readxl)
+            install.packages("naniar")
+            library(naniar)
+            library(ggplot2)
+            library(dplyr)
+            install.packages('simputation')
+            library(simputation)
+            library(visdat)
+            install.packages("Hmisc")
+            library(Hmisc)
+            
+            table (train_hogares$Pobre) #131936  33024
+            table(train_hogares$Dominio)
+            
+            #----------------Características de la Vivienda---------
+            
+            table(train_hogares$Tipo_vivienda)
+            
+            prop.test(table(train_hogares$Tipo_vivienda,train_hogares$Pobre))
+            
+            prop.table(table(train_hogares$Pobre,train_hogares$Tipo_vivienda), margin=2)
+            
+            table(train_hogares$Pobre)
+            
+            tabla2<-table(train_hogares$Tipo_vivienda,train_hogares$Ncuartos_dormir)
+            tabla2
+            
+            
+            train_hogares %>%
+              group_by(Pobre) %>%
+              summarise_at(.vars = "Ncuartos",
+                           .funs = c("mean", "sd", "var", "min", "max"),
+                           na.rm = TRUE)
+            
+            
+            train_hogares %>%
+              group_by(Pobre) %>%
+              summarise_at(.vars = "hacinamiento",
+                           .funs = c("mean", "sd", "var", "min", "max"),
+                           na.rm = TRUE)
+            
+            
+            
+            #--------------------------Dominio | Pobre-------------------------
+            train_hogares %>%
+              group_by(Dominio) %>%
+              summarise_at(.vars = "Tipo_vivienda",
+                           .funs = c("mean", "sd", "var", "min", "max"),
+                           na.rm = TRUE)
+            
+            dh1 <- train_hogares %>%
+              group_by(Dominio) %>%
+              summarise_at(.vars = "hacinamiento",
+                           .funs = c("mean", "sd", "var", "min", "max"),
+                           na.rm = TRUE)
+            print(dh1,n=25)
+            #--------------------------Sexo Jefe del Hogar | Ingcug-------------------------
+            
+            
+            describe(train_hogares$sexo_jefe_hogar)
+            
+            prop.table(table(train_hogares$sexo_jefe_hogar))
+            
+            
+            ggplot(train_hogares, aes(x = sexo_jefe_hogar)) +
+              geom_bar(fill = "darkblue") +
+              theme_bw() +
+              labs(title = " ¿Cual es el género del jefe del hogar? 
+                        si=1, no=0",
+                   x = "",
+                   y = "Frecuencia") +
+              coord_flip()
+            
+            table(train_personas$Dominio,train_personas$sexo_jefe_hogar)
+            
+            train_hogares %>%
+              group_by(sexo_jefe_hogar) %>%
+              summarise_at(.vars = "Ingpcug",
+                           .funs = c("mean", "sd", "var", "min", "max"),
+                           na.rm = TRUE)
+            
+            da1 <-train_hogares %>%
+              group_by(Dominio) %>%
+              summarise_at(.vars = "Ingpcug",
+                           .funs = c("mean", "sd", "var", "min", "max"),
+                           na.rm = TRUE)
+            print(da1,n=25)
+            
+            prop.table(table(train_hogares$sexo_jefe_hogar, train_hogares$Dominio), margin=2)
+            
+            #--------------------------Subsidios Pobreza Dominio-------------------------
+            
+            
+            train_hogares %>%
+              group_by(Pobre) %>%
+              summarise_at(.vars = "Horas_trabajo1",
+                           .funs = c("mean", "sd", "var", "min", "max"),
+                           na.rm = T)
+            
+            train_hogares %>%
+              group_by(Pobre) %>%
+              summarise_at(.vars = "edad_jefe_hogar",
+                           .funs = c("mean", "sd", "var", "min", "max"),
+                           na.rm = T)
+            
+            summarise(train_hogares$edad_jefe_hogar)
+            
+            summary(train_hogares$edad_jefe_hogar)
+            
+            prop.table(table(train_hogares$sexo_jefe_hogar, train_hogares$ocupacion_jefe_hogar))
+            
+            
+            prop.table(table(train_hogares$ocupacion_jefe_hogar, train_hogares$subsidio))
+            
+            #---------------------------- Gráfica Pobreza por Ingreso-----------------------
+            
+            library(tidyverse)
+            library(ggplot2)
+            install.packages("vtable")
+            library(vtable)
+            library(kableExtra)
+            install.packages("gtsummary")
+            library(gtsummary)
+            
+            
+            ggplot(data = train_hogares , mapping = aes(x = id, y = Ingpcug, group=as.factor(Pobre) , color=as.factor(Pobre) )) + 
+              geom_jitter(width = 0.005, height = 0.1)+ geom_smooth(span = 0.3)  + ylim(0, 80000000) + scale_y_continuous(trans = "log10") +
+              scale_fill_manual(values = c("0"="red" , "1"="blue") , label = c("0"="No Pobre" , "1"="Pobre") , name = "Clasificación Pobreza") +
+              labs (title= "Ingresos Per Capita por Clasificación del Hogar Pobre vs No Pobre", 
+                    x="Clasificacion Pobreza | 0 = No Pobre    1 = Pobre", 
+                    y="Ingreso Hogar", 
+                    caption= " Datos GEIH 2O18") + theme_classic()
+            
+            
+            
+            #-------------Tablas Variables Categoricas--------------------------------------------------------
+            
+            categorical_table <- train_hogares %>% select(Dominio, Pobre, sexo_jefe_hogar, subsidio) %>% 
+              tbl_summary(type = list(Dominio~ "categorical", Pobre~ "categorical", sexo_jefe_hogar~ "categorical", subsidio~ "categorical"), missing="no") 
+            
+            
+            
+            categorical_tablee <- train_hogares %>% select(Pobre,sexo_jefe_hogar,rs_jefe_hogar,edu_jefe_hogar,ocupacion_jefe_hogar) %>% 
+              tbl_summary(type = list(Pobre~ "categorical", sexo_jefe_hogar~ "categorical", rs_jefe_hogar~ "categorical", edu_jefe_hogar~ "categorical",ocupacion_jefe_hogar~ "categorical"), missing="no") 
+            
+            categorical_tablee
+            
+            
+            #-------------------------------Tabla Variables Continuas-----------------------------------------------------------------
+            
+            st(train_hogares, vars=c('Ncuartos', 'Nper', 'Ingpcug', 'Lp', 'hacinamiento', 'edad_jefe_hogar','Horas_trabajo1', 'Horas_trabajo2', 'arriendo_estimado'), 
+               labels=c('Numero de Cuartos - Incluye Sala', 'Numero de Personas por Hogar', 
+                        'Ingresos (Pesos)', 'Linea de Pobreza','Hacinamiento',
+                        'Edad del Jefe del Hogar', 'Horas Trabajadas Hogar (Semanales)','Horas Trabajadas Hogar Segundo Empleo (Semanales)',
+                        'Arriendo (Pesos)'), summ.names = list(c('Observaciones','Promedio','Desv.Est.','Min','Max')))
+            
+            
+            
+            
             
 #----------------------------------- D i v i s i ó n  d e  M u e s t r a ---------------------------------
             set.seed(12345) 
@@ -185,8 +317,8 @@
             test<-train_hogares2[train_hogares2$holdout==T,] #32.992
             train<-train_hogares2[train_hogares2$holdout==F,] #131.968
             
-#----------------------------------- M o d e l o s   d e  e s t i m a c i ó n ---------------------------------
-#------------OLS
+#----------------------------------- M o d e l o s   d e  e s t i m a c i ó n ----------------------------------------------------------------------------- 
+#------------------------------------------------------- OLS--------------------------------------------------------------------------------------- 
            set.seed(12345)
             ols <- train(log_ing_per~ Tipo_vivienda+ rs_jefe_hogar+edu_jefe_hogar+ Ncuartos + Ncuartos_dormir+ 
                                       Nper+Npersug+ hacinamiento+edad_jefe_hogar+Horas_trabajo1+Horas_trabajo2+
@@ -969,8 +1101,8 @@ table(test$Pobre,y_hat_lasso_outsample1)
       #Modelo  Base Accuracy Precision Recall    F1
       #1 Modelo : Grid search Train    15.72     40.19  10.93 17.19
       #2 Modelo : Grid search  Test    15.73     39.94  10.98 17.22
-      
-  #-----------------------------arbol1------------------------------------------
+#------------------------------------------------------T r e e s --------------------------------------------------------      
+#-----------------------------arbol1------------------------------------------
       
       # Convertimos la marca a factor
       train$Pobre <- factor(train$Pobre)
@@ -1221,7 +1353,7 @@ table(test$Pobre,y_hat_lasso_outsample1)
       
       
       
-    #-----------------------------arbol3------------------------------------------
+#-----------------------------arbol3------------------------------------------
       
       
       # Convertimos la marca a factor
@@ -1346,156 +1478,327 @@ table(test$Pobre,y_hat_lasso_outsample1)
       
       
       
-#--------------------------------- R a n d o m   F o r e s t  ---------------------------------
-      
-      
-      
-      
-      
-      
-      
-      
-      
-      
-      
-      
-      
-      
-      
-      
-      
 
-        
-#---------------------------------M E J O R A R   M O D E L O   G A N A D O R ---------------------------------
-#------------------------------------------------ T U N E A R  ---------------------------------------
-        
-#------------Métricas 
-        The function trainControl generates parameters that further control how models are created, with possible values:
-          
-#---ROC  
-          set.seed(825)
-        gbmFit3 <- train(Class ~ ., data = training, 
-                         method = "gbm", 
-                         trControl = fitControl, 
-                         verbose = FALSE, 
-                         tuneGrid = gbmGrid,
-                         ## Specify which metric to optimize
-                         metric = "ROC")
-        gbmFit3
-#-------------- Model tuning: Maximizar la capacidd predictiva del modelo (para logit) 
-        
-        ctrl def <- trainControl(method = "cv",
-                                 number = 5,
-                                 summaryFunction = defaultSummary,
-                                 classProbs = TRUE,
-                                 verbose=FALSE,
-                                 savePredictions = T)
-#______________ Accuracy y Kappa 
-        set.seed(1410)
-        mylogit caret def <- train(
-          Default ~amount+installment+age+ historygood + historypoor + purposeusedcar+ purposegoods.repair + purposeedu + foreigngerman + rentTRdata = training,
-          method = "glm", #for logit
-          trControl = ctrl def,
-          family = "binomial",
-          preProcess = c("center", "scale")
-        )
-        mylogit caret def
-        
-        
-        ctrl two <- trainControl(method = "cv",
-                                 number = 5,
-                                 summaryFunction = twoClassSummary,
-                                 classProbs = TRUE,
-                                 verbose=FALSE,
-                                 savePredictions = T)
-        
-#______________ ROC, Sensibilidad y especificidad
-        
-        set.seed(1410)
-        mylogit caret two <- train(
-          Default ~amount+installment+age+ historygood + historypoor + purposeusedcar+ purposegoods.repair + purposeedu + foreigngerman + rentTRdata = training,
-          method = "glm", #for logit
-          trControl = ctrl two,
-          family = "binomial",
-          preProcess = c("center", "scale")
-        )
-        
-        
-        #------------ 5 Métricas juntas
-        
-        fiveStats <- function(...) c(twoClassSummary(...), defaultSummary(...))
-        ctrl<- trainControl(method = "cv",
-                            number = 5,
-                            summaryFunction = fiveStats,
-                            classProbs = TRUE,
-                            verbose=FALSE,
-                            savePredictions = T)
-        #logit
-        set.seed(1410)
-        mylogit caret <- train(
-          Default ~amount+installment+age+ historygood + historypoor + purposeusedcar+ purposegoods.repair + purposeedu + foreigngerman + rentTRdata = training,
-          method = "glm", #for logit
-          trControl = ctrl,
-          family = "binomial",
-          preProcess = c("center", "scale")
-        )
-        
-#-------------- Model tuning: Maximizar la capacidd predictiva del modelo (para losso) 
-        #Model(glmnet) method (glmnet) Type (Classification), Regression	libraries(glmnet, Matrix)	Tunning parameters (alpha, lambda)
-        #-----Lasso
-        lambda grid <- 10^seq(-4, 0.01, length = 10) #en la practica se suele usar una grilla de 200 o 300
-        lambda grid
-        
-#------------ 5 Métricas juntas
-        
-        set.seed(1410)
-        mylogit lasso acc <- train(
-          Default ~amount+installment+age+ historygood + historypoor + purposeusedcar+ purposegoods.repair + purposeedu + foreigngerman + rentTRdata = training,
-          method = "glmnet",
-          trControl = ctrl,
-          family = "binomial",
-          metric = "Accuracy",
-          tuneGrid = expand.grid(alpha = 0,lambda=lambda grid),
-          preProcess = c("center", "scale")
-        )
-        
-        mylogit lasso acc
-        
-#------ROC        
-        set.seed(1410)
-        mylogit lasso roc <- train(
-          Default ~amount+installment+age+ historygood + historypoor + purposeusedcar+ purposegoods.repair + purposeedu + foreigngerman + rentTRdata = training,
-          method = "glmnet",
-          trControl = ctrl,
-          family = "binomial",
-          metric = "ROC",
-          tuneGrid = expand.grid(alpha = 0,lambda=lambda grid),
-          preProcess = c("center", "scale")
-        )
-#------ Sensibilidad      
-        
-        set.seed(1410)
-        mylogit_caret_sens <- train(
-          y_train ~ .,
-          data=cbind(y_train, x_train),
-          method = "glmnet",
-          trControl = ctrl,
-          family = "binomial",
-          metric = "Sens",
-          tuneGrid = expand.grid(alpha = 0,lambda=lambda grid),
-          preProcess = c("center", "scale")
-        )
-        
-#------ Cutoff óptimo     
-        
-        evalResults <- data.frame(Default = evaluation$Default)
-        evalResults$Roc <- predict(mylogit lasso roc,
-                                   newdata = evaluation,
-                                   type = "prob")[,1]
-        
-        
-        
-        
-        
-        
-        
+#----------------------------------------------- R a n d o m   F o r e s t  ---------------------------------------------
+      
+      install.packages("ranger")
+      library(ranger)
+      y_train2<-upSampledTrain$Pobre
+      x_train2<-upSampledTrain
+      x_train2<-x_train2[,-62]
+      x_train2<-x_train2[,-61]
+      x_train2<-x_train2[,-60]
+      
+      # Creamos una grilla para tunear el random forest
+      set.seed(12345)
+      cv3 <- trainControl(number = 3, method = "cv")
+      tunegrid_rf <- expand.grid(mtry = c(3, 5, 10), 
+                                 min.node.size = c(10, 30, 50,
+                                                   70, 100),
+                                 splitrule="gini"
+      )
+      
+      modeloRF <- train(y_train2 ~ .,
+                        data = cbind(y_train2, x_train2), 
+                        method = "ranger", 
+                        trControl = cv3,
+                        metric = 'Recall', 
+                        verbose = TRUE,
+                        tuneGrid = tunegrid_rf)
+      
+      
+      # Comando automático (a mi no me gusta)
+      plot(modeloRF)
+     
+      # Comando manual
+      ggplot(modeloRF$results, aes(x = min.node.size, y = Accuracy, 
+                                   color = as.factor(mtry))) +
+        geom_line() +
+        geom_point() +
+        labs(title = "Resultados del grid search",
+             x = "Mínima cantidad de observaciones por hoja",
+             y = "Acuraccy (Cross-Validation)") +
+        scale_color_discrete("Número de predictores seleccionados al azar") +
+        theme_bw() +
+        theme(legend.position = "bottom")
+      
+      # El mejor modelo es aquel que tiene mtry = X y min.node.size = X
+      y_hat_insample2 = predict(modeloRF, newdata = x_train2)
+      y_hat_outsample2 = predict(modeloRF, newdata = predicciones_general_t)
+      modeloRF$coefnames
+      
+      #metricas 
+      acc_insample2 <- Accuracy(y_pred = y_hat_insample2, y_true = y_train)
+      acc_outsample2 <- Accuracy(y_pred = y_hat_outsample2, y_true = test$Pobre)
+      
+      pre_insample2 <- Precision(y_pred = y_hat_insample2, y_true = y_train, positive = 1)
+      pre_outsample2 <- Precision(y_pred = y_hat_outsample2, y_true = test$Pobre, positive = 1)
+      
+      rec_insample2 <- Recall(y_pred = y_hat_insample2, y_true = y_train, positive = 1)
+      rec_outsample2 <- Recall(y_pred = y_hat_outsample2, y_true = test$Pobre, positive = 1)
+      
+      f1_insample2 <- F1_Score(y_pred = y_hat_insample2, y_true = y_train, positive = 1)
+      f1_outsample2 <- F1_Score(y_pred = y_hat_outsample2, y_true = test$Pobre, positive = 1)
+      
+      metricas_insample2 <- data.frame(Modelo = "Random Forest", 
+                                       "Muestreo" = NA, 
+                                       "Evaluación" = "Dentro de muestra",
+                                       "Accuracy" = acc_insample1,
+                                       "Precision" = pre_insample1,
+                                       "Recall" = rec_insample1,
+                                       "F1" = f1_insample1)
+      
+      metricas_outsample2 <- data.frame(Modelo = "Random Forest", 
+                                        "Muestreo" = NA, 
+                                        "Evaluación" = "Fuera de muestra",
+                                        "Accuracy" = acc_outsample1,
+                                        "Precision" = pre_outsample1,
+                                        "Recall" = rec_outsample1,
+                                        "F1" = f1_outsample1)
+      
+      metricas2 <- bind_rows(metricas_insample2, metricas_outsample2)
+      metricas2 
+      
+--------# Importancia de las variables
+      
+      modeloRF$results
+      importancia <- varImp(modeloRF$)
+      
+      varImpPlot(modeloRF)
+      
+      
+      importancia <- importancia %>%
+        data.frame() %>%
+        rownames_to_column(var = "Variable") %>%
+        mutate(Porcentaje = Overall/sum(Overall)) %>%
+        filter(Porcentaje > 0) %>%
+        arrange(desc(Porcentaje))
+      
+      ggplot(importancia, aes(x = Porcentaje, 
+                              y = reorder(Variable, Porcentaje))) +
+        geom_bar(stat = "identity", fill = "darkblue", alpha = 0.8) +
+        labs(y = "Variable") +
+        scale_x_continuous(labels = scales::percent) +
+        theme_classic()    
+      
+    
+#----------------------------------------------- E s t i m a c i ó n   f i n a l -----------------------------------------
+#----------------------------------- C o n s t r u c c i o n   d e   l a   b a s e    t e s t ---------------------------------------
+      #Sexo jefe hogar
+      sex_jefe_hog<- as.data.frame(ifelse((test_personas$P6020==1 & test_personas$P6050==1),1,0))
+      test_personas<- cbind(test_personas, sex_jefe_hog)
+      names(test_personas)[names(test_personas)=='ifelse((test_personas$P6020 == 1 & test_personas$P6050 == 1), 1, 0)']<-'sexo_jefe_hogar'
+      sexo_jefe_hog<-test_personas %>% group_by(id) %>% summarize(sexo_jefe_hogar=sum(sexo_jefe_hogar,na.rm = TRUE)) 
+      summary(sexo_jefe_hog)
+      #Edad jefe hogar
+      edad_jefe_hogar<- (ifelse((test_personas$P6050==1),test_personas$P6040,0))
+      test_personas<- cbind(test_personas, edad_jefe_hogar)
+      edad_jefe_hog<-test_personas %>% group_by(id) %>% summarize(edad_jefe_hogar=sum(edad_jefe_hogar,na.rm = TRUE)) 
+      summary(edad_jefe_hog)
+      
+      #Hacinamiento
+      hacinamiento=test_hogares$Nper/test_hogares$P5010
+      test_hogares<-cbind(test_hogares, hacinamiento)
+      
+      #Régimen de salud jefe de hogar
+      rs_jefe_hogar<- (ifelse((test_personas$P6050==1),test_personas$P6100,0))
+      test_personas<- cbind(test_personas, rs_jefe_hogar)
+      rs_jefe_hog<-test_personas %>% group_by(id) %>% summarize(rs_jefe_hogar=sum(rs_jefe_hogar,na.rm = TRUE)) 
+      summary(rs_jefe_hog)
+      
+      #Nivel educativo jefe hogar
+      edu_jefe_hogar<- (ifelse((test_personas$P6050==1),test_personas$P6210,0))
+      test_personas<- cbind(test_personas, edu_jefe_hogar)
+      educ_jefe_hog<-test_personas %>% group_by(id) %>% summarize(edu_jefe_hogar=sum(edu_jefe_hogar,na.rm = TRUE)) 
+      summary(educ_jefe_hog)
+      
+      # Ocupación jefe hogar
+      ocupacion_jefe_hogar<- (ifelse((test_personas$P6050==1),test_personas$P6430,0))
+      test_personas<- cbind(test_personas, ocupacion_jefe_hogar)
+      ocupacion_jefe_hog<-test_personas %>% group_by(id) %>% summarize(ocupacion_jefe_hogar=sum(ocupacion_jefe_hogar,na.rm = TRUE)) 
+      summary(ocupacion_jefe_hog)
+      
+      #Subsidios
+      test_personas$P6585s1 = ifelse((test_personas$P6585s1==2),0,test_personas$P6585s1)
+      test_personas$P6585s2 = ifelse((test_personas$P6585s2==2),0,test_personas$P6585s2)
+      test_personas$P6585s3 = ifelse((test_personas$P6585s3==2),0,test_personas$P6585s3)
+      test_personas$P6585s4 = ifelse((test_personas$P6585s4==2),0,test_personas$P6585s4)
+      test_personas$P6585s1 = ifelse((test_personas$P6585s1==9),0,test_personas$P6585s1)
+      test_personas$P6585s2 = ifelse((test_personas$P6585s2==9),0,test_personas$P6585s2)
+      test_personas$P6585s3 = ifelse((test_personas$P6585s3==9),0,test_personas$P6585s3)
+      test_personas$P6585s4 = ifelse((test_personas$P6585s4==9),0,test_personas$P6585s4)
+      subsidio<-(test_personas$P6585s1+test_personas$P6585s2+test_personas$P6585s3+test_personas$P6585s4)
+      test_personas<-cbind(test_personas,subsidio)
+      sub_hog<-test_personas %>% group_by(id) %>% summarize(subsidio=sum(subsidio,na.rm = TRUE)) 
+      
+      #Suma de horas trabajadas por hogar 
+      horas_tra_hogar<-test_personas %>% group_by(id) %>% summarize(P6800=mean(P6800,na.rm = TRUE)) 
+      
+      #Suma de horas trabajadas segundo empleo por hogar 
+      horas_tra_hogar_2<-test_personas %>% group_by(id) %>% summarize(P7045=mean(P7045,na.rm = TRUE)) 
+      
+      
+      #-------Merge 
+      test_hogares<-left_join(test_hogares, sexo_jefe_hog)
+      test_hogares<-left_join(test_hogares, edad_jefe_hog)
+      test_hogares<-left_join(test_hogares, rs_jefe_hog)
+      test_hogares<-left_join(test_hogares, educ_jefe_hog)
+      test_hogares<-left_join(test_hogares, ocupacion_jefe_hog)
+      test_hogares<-left_join(test_hogares, sub_hog)
+      test_hogares<-left_join(test_hogares, horas_tra_hogar)
+      test_hogares<-left_join(test_hogares, horas_tra_hogar_2)
+      colnames(test_hogares)
+      
+      
+      #-------Renonbrar variables y cambiar missings
+      names(test_hogares)[names(test_hogares)=='P5000']<-'Ncuartos'
+      names(test_hogares)[names(test_hogares)=='P5010']<-'Ncuartos_dormir'
+      names(test_hogares)[names(test_hogares)=='P5090']<-'Tipo_vivienda'
+      names(test_hogares)[names(test_hogares)=='P6800']<-'Horas_trabajo1'
+      names(test_hogares)[names(test_hogares)=='P7045']<-'Horas_trabajo2'
+      test_hogares$P5130 = ifelse(is.na(test_hogares$P5130)==T,0,test_hogares$P5130)
+      test_hogares$P5140 = ifelse(is.na(test_hogares$P5140)==T,0,test_hogares$P5140)
+      test_hogares$Horas_trabajo1 = ifelse(is.na(test_hogares$Horas_trabajo1)==T,0,test_hogares$Horas_trabajo1)
+      test_hogares$Horas_trabajo2 = ifelse(is.na(test_hogares$Horas_trabajo2)==T,0,test_hogares$Horas_trabajo2)
+      
+      test_hogares$subsidio<-(ifelse((test_hogares$subsidio>0),1,0))
+      arriendo_estimado<-test_hogares$P5130+test_hogares$P5140
+      test_hogares<-cbind(test_hogares,arriendo_estimado$subsidio<-(ifelse((test_hogares$subsidio>0),1,0))
+                          test_hogares<-cbind(test_hogares,arriendo_estimado)
+                          
+                          
+                          test_hogares2<-test_hogares
+                          
+                          
+                          # 1.Variables como factor 
+                          test_hogares2$Dominio<-as.factor(test_hogares2$Dominio)
+                          test_hogares2$Tipo_vivienda<-as.factor(test_hogares2$Tipo_vivienda)
+                          test_hogares2$rs_jefe_hogar<-as.factor(test_hogares2$rs_jefe_hogar)
+                          test_hogares2$edu_jefe_hogar<-as.factor(test_hogares2$edu_jefe_hogar)
+                          test_hogares2$ocupacion_jefe_hogar<-as.factor(test_hogares2$ocupacion_jefe_hogar)
+                          
+                          #Logaritmo del ingreso percapita
+                          ing_per = test_hogares2$Ingpcug
+                          ing_per<-ifelse((ing_per)==0,1,ing_per)
+                          log_ing_per<- log(ing_per)
+                          train_hogares2<-cbind(train_hogares2,log_ing_per)
+                          
+#--------------------------------------------------- F o r e s t  f i n a l ---------------------------------------------
+                          install.packages("ranger")
+                          library(ranger)
+                          
+                          y_train2<-upSampledTrain$Pobre
+                          x_train2<-upSampledTrain
+                          x_train2<-x_train2[,-62]
+                          x_train2<-x_train2[,-61]
+                          x_train2<-x_train2[,-60]
+                          x_continuas=(upSampledTrain[,c(3,4,6,7,14,18,22,24,26)])
+                          x_categoricas=(upSampledTrain[,c(2,5,17,19,20,21,25)])
+                          # Ahora procedemos a dummyficar la base
+                          x_categoricas<- model.matrix(~ ., x_categoricas) %>%
+                            as.data.frame 
+                          predicciones_general<- cbind(x_categoricas,x_continuas)
+                          
+                          #base para reemplazo del modelo
+                          x_continuas_t=(test_hogares[c(3,4,6,7,8,9,13,14,15)]
+                                         x_continuas_t<-scale(x_continuas_t,center=T,scale=T)
+                                         x_categoricas_t=(test_hogares[,c(2,5,10,11,12,16,17)])
+                                         
+                                         
+                                         # Ahora procedemos a dummyficar la base
+                                         x_categoricas_t<- model.matrix(~ ., x_categoricas_t) %>%
+                                           as.data.frame 
+                                         
+                                         x_categoricas_t<-x_categoricas_t[,-1]
+                                         x_categoricas_t<-cbind(DominioBOGOTA,x_categoricas_t)
+                                         predicciones_general_t<- cbind(x_categoricas_t,x_continuas_t)
+                                         
+                                         
+                                         
+                                         # Creamos una grilla para tunear el random forest
+                                         set.seed(12345)
+                                         cv3 <- trainControl(number = 3, method = "cv")
+                                         tunegrid_rf <- expand.grid(mtry = c(3, 5, 10), 
+                                                                    min.node.size = c(10, 30, 50,
+                                                                                      70, 100),
+                                                                    splitrule="gini"
+                                         )
+                                         
+                                         modeloRF <- train(y_train2 ~ .,
+                                                           data = cbind(y_train2, x_train2), 
+                                                           method = "ranger", 
+                                                           trControl = cv3,
+                                                           metric = 'Recall', 
+                                                           verbose = TRUE,
+                                                           tuneGrid = tunegrid_rf)
+                                         
+                                         
+                                         # El mejor modelo es aquel que tiene mtry = X y min.node.size = X
+                                         y_hat_outsample2 = predict(modeloRF, newdata = predicciones_general_t)
+                                         
+                                         
+                                         
+                                         
+                                         
+                                         
+#-------------------------------------------------- E l a s t i c  N e t ---------------------------------------------
+                                         
+                                         
+                                         # Model Building : Elastic Net Regression
+                                         custom <- trainControl(method = "repeatedcv",
+                                                                number = 10,
+                                                                repeats = 5,
+                                                                verboseIter = TRUE)
+                                         y_train=upSampledTrain$log_ing_per
+                                         
+                                         #modelo
+                                         set.seed(12345)
+                                         en <- train(y_train~.,
+                                                     data=cbind(y_train,predicciones_general),
+                                                     method='glmnet',
+                                                     tuneGrid =expand.grid(alpha=seq(0,1,length=10),
+                                                                           lambda = seq(0.0001,0.2,length=5)),
+                                                     trControl=custom)
+                                         
+                                         #-------resultados 
+                                         #test
+                                         test_hogares<-cbind(test_hogares,test_hogares2$sexo_jefe_hogar)
+                                         names(test_hogares)[names(test_hogares)=='`test_hogares2$sexo_jefe_hogar']<-"sexo_jefe_hogar"
+                                         
+                                         test_hogares<-cbind(test_hogares,test_hogares2$rs_jefe_hogar)
+                                         names(test_hogares)[names(test_hogares)=='test_hogares2$rs_jefe_hogar']<-"rs_jefe_hogar"
+                                         
+                                         test_hogares<-test_hogares[,-2]
+                                         test_hogares<-test_hogares[,-6]
+                                         test_hogares<-test_hogares[,-6]
+                                         test_hogares<-test_hogares[,-6]
+                                         test_hogares<-test_hogares[,-8]
+                                         test_hogares<-test_hogares[,-10]
+                                         test_hogares<-test_hogares[,-12]
+                                         test_hogares<-test_hogares[,-8] 
+                                         test_hogares<-test_hogares[,-13]
+                                         test_hogares<-test_hogares[,-14]
+                                         
+                                         test_hogares$Dominio<-as.factor(test_hogares$Dominio)
+                                         test_hogares$Tipo_vivienda<-as.factor(test_hogares$Tipo_vivienda)
+                                         test_hogares$rs_jefe_hogar<-as.factor(test_hogares$rs_jefe_hogar)
+                                         test_hogares$edu_jefe_hogar<-as.factor(test_hogares$edu_jefe_hogar)
+                                         test_hogares$ocupacion_jefe_hogar<-as.factor(test_hogares$ocupacion_jefe_hogar)
+                                         
+                                         
+                                         #----------Modelo ganador 
+                                         modelo<- glmnet(
+                                           x           = predicciones_general,
+                                           y           = y_train,
+                                           alpha       = 0.444,
+                                           lambda      = 0.0001,
+                                           standardize = TRUE
+                                         )
+                                         
+                                         predicciones_general_t<-as.matrix(predicciones_general_t)
+                                         predicciones_test <- predict(modelo, newx = predicciones_general_t)
+                                         y_hat_en_outsample<-exp(predicciones_test)
+                                         y_hat_en_outsample <- as.numeric(ifelse(y_hat_en_outsample<test_hogares2$Lp,1,0))
+                                         table(y_hat_en_outsample)
+                                         
+                                         
